@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       class: foodClass,
-      label: label || foodClass.replace(/_/g, ' '),
+      label: label || (foodClass ? foodClass.replace(/_/g, ' ') : 'Unknown'),
       confidence: confidence,
       nutrition: nutrition,
       nutritionSource: nutritionSource,

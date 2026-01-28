@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // Map database field names (food_class) to frontend field names (foodClass)
     const mappedHistory = (history || []).map(entry => ({
       date: entry.date,
-      foodClass: entry.food_class || entry.foodClass || '',
+      foodClass: entry.food_class || '',
       calories: entry.calories || 0,
       protein: entry.protein || 0,
       carbs: entry.carbs || 0,
