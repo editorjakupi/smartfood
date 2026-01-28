@@ -37,6 +37,12 @@ export interface ChatContext {
   }>
 }
 
+// ChatMessage for API requests (simpler than Message)
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export function createMessage(
   role: 'user' | 'assistant' | 'system',
   content: string
