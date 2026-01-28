@@ -1,26 +1,30 @@
-// Vercel Postgres Database
-// Uses @vercel/postgres for production, falls back to SQLite for local development
+// Neon Postgres Database (or any PostgreSQL)
+// Uses pg (node-postgres) for production, falls back to SQLite for local development
 
 let db: any
 let dbType: 'postgres' | 'sqlite' = 'sqlite'
 
-// Check if we're in production (Vercel Postgres)
+// Check if we're in production (Neon Postgres or any PostgreSQL)
 if (process.env.POSTGRES_URL) {
   dbType = 'postgres'
-  // Dynamic import for Vercel Postgres
-  const { sql } = require('@vercel/postgres')
-  db = sql
+  // Use standard PostgreSQL client (pg) for Neon compatibility
+  const { Pool } = require('pg')
+  const pool = new Pool({
+    connectionString: process.env.POSTGRES_URL,
+    ssl: process.env.POSTGRES_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+  })
+  db = pool
   
   // Initialize Postgres tables (run once, ignore errors if exists)
   ;(async () => {
     try {
-      await db`
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-      `
-      await db`
+      `)
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS food_history (
           id SERIAL PRIMARY KEY,
           user_id TEXT NOT NULL,
@@ -34,13 +38,13 @@ if (process.env.POSTGRES_URL) {
           confidence REAL DEFAULT 0,
           FOREIGN KEY (user_id) REFERENCES users(id)
         );
-      `
-      await db`
+      `)
+      await pool.query(`
         CREATE INDEX IF NOT EXISTS idx_food_history_user_id ON food_history(user_id);
-      `.catch(() => {})
-      await db`
+      `).catch(() => {})
+      await pool.query(`
         CREATE INDEX IF NOT EXISTS idx_food_history_date ON food_history(date);
-      `.catch(() => {})
+      `).catch(() => {})
     } catch (error) {
       // Tables might already exist, ignore
       console.log('Postgres tables initialization:', error)
@@ -92,7 +96,7 @@ export const dbOperations = {
   // User operations
   async getOrCreateUser(userId: string): Promise<string> {
     if (dbType === 'postgres') {
-      await db`INSERT INTO users (id) VALUES (${userId}) ON CONFLICT (id) DO NOTHING`
+      await db.query('INSERT INTO users (id) VALUES ($1) ON CONFLICT (id) DO NOTHING', [userId])
       return userId
     } else {
       const stmt = db.prepare('INSERT OR IGNORE INTO users (id) VALUES (?)')
@@ -114,14 +118,23 @@ export const dbOperations = {
     confidence: number
   }): Promise<number> {
     if (dbType === 'postgres') {
-      const result = await db`
+      const result = await db.query(`
         INSERT INTO food_history 
         (user_id, date, food_class, calories, protein, carbs, fat, fiber, confidence)
-        VALUES (${entry.user_id}, ${entry.date}, ${entry.food_class}, ${entry.calories}, 
-                ${entry.protein}, ${entry.carbs}, ${entry.fat}, ${entry.fiber}, ${entry.confidence})
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id
-      `
-      return result[0].id
+      `, [
+        entry.user_id,
+        entry.date,
+        entry.food_class,
+        entry.calories,
+        entry.protein,
+        entry.carbs,
+        entry.fat,
+        entry.fiber,
+        entry.confidence
+      ])
+      return result.rows[0].id
     } else {
       const stmt = db.prepare(`
         INSERT INTO food_history 
@@ -155,15 +168,15 @@ export const dbOperations = {
     confidence: number
   }>> {
     if (dbType === 'postgres') {
-      const result = await db`
+      const result = await db.query(`
         SELECT id, date, food_class, calories, protein, carbs, fat, fiber, confidence
         FROM food_history
-        WHERE user_id = ${userId}
+        WHERE user_id = $1
         ORDER BY date DESC
-      `
-      return result.map((r: any) => ({
+      `, [userId])
+      return result.rows.map((r: any) => ({
         id: r.id,
-        date: r.date.toISOString(),
+        date: r.date instanceof Date ? r.date.toISOString() : r.date,
         food_class: r.food_class,
         calories: r.calories,
         protein: r.protein,
@@ -195,10 +208,11 @@ export const dbOperations = {
 
   async deleteFoodEntry(entryId: number, userId: string): Promise<boolean> {
     if (dbType === 'postgres') {
-      const result = await db`
-        DELETE FROM food_history WHERE id = ${entryId} AND user_id = ${userId}
-      `
-      return result.count > 0
+      const result = await db.query(
+        'DELETE FROM food_history WHERE id = $1 AND user_id = $2',
+        [entryId, userId]
+      )
+      return result.rowCount > 0
     } else {
       const stmt = db.prepare('DELETE FROM food_history WHERE id = ? AND user_id = ?')
       const result = stmt.run(entryId, userId)
@@ -208,10 +222,11 @@ export const dbOperations = {
 
   async deleteUserHistory(userId: string): Promise<boolean> {
     if (dbType === 'postgres') {
-      const result = await db`
-        DELETE FROM food_history WHERE user_id = ${userId}
-      `
-      return result.count > 0
+      const result = await db.query(
+        'DELETE FROM food_history WHERE user_id = $1',
+        [userId]
+      )
+      return result.rowCount > 0
     } else {
       const stmt = db.prepare('DELETE FROM food_history WHERE user_id = ?')
       const result = stmt.run(userId)
