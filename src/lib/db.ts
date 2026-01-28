@@ -16,47 +16,47 @@ if (process.env.POSTGRES_URL) {
       ssl: process.env.POSTGRES_URL.includes('localhost') ? false : { rejectUnauthorized: false }
     })
     db = pool
+    
+    // Initialize Postgres tables (run once, ignore errors if exists)
+    ;(async () => {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+        `)
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS food_history (
+            id SERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            date TIMESTAMP NOT NULL,
+            food_class TEXT NOT NULL,
+            calories REAL DEFAULT 0,
+            protein REAL DEFAULT 0,
+            carbs REAL DEFAULT 0,
+            fat REAL DEFAULT 0,
+            fiber REAL DEFAULT 0,
+            confidence REAL DEFAULT 0,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+          );
+        `)
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_food_history_user_id ON food_history(user_id);
+        `).catch(() => {})
+        await db.query(`
+          CREATE INDEX IF NOT EXISTS idx_food_history_date ON food_history(date);
+        `).catch(() => {})
+      } catch (error) {
+        // Tables might already exist, ignore
+        console.log('Postgres tables initialization:', error)
+      }
+    })()
   } catch (error) {
     console.error('Failed to load pg module. Make sure to run: npm install', error)
     // Fallback to SQLite if pg is not available
     dbType = 'sqlite'
   }
-  
-  // Initialize Postgres tables (run once, ignore errors if exists)
-  ;(async () => {
-    try {
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `)
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS food_history (
-          id SERIAL PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          date TIMESTAMP NOT NULL,
-          food_class TEXT NOT NULL,
-          calories REAL DEFAULT 0,
-          protein REAL DEFAULT 0,
-          carbs REAL DEFAULT 0,
-          fat REAL DEFAULT 0,
-          fiber REAL DEFAULT 0,
-          confidence REAL DEFAULT 0,
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-      `)
-      await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_food_history_user_id ON food_history(user_id);
-      `).catch(() => {})
-      await pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_food_history_date ON food_history(date);
-      `).catch(() => {})
-    } catch (error) {
-      // Tables might already exist, ignore
-      console.log('Postgres tables initialization:', error)
-    }
-  })()
 } else {
   // Local development: Use SQLite
   const Database = require('better-sqlite3')
