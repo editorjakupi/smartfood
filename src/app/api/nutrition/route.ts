@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 // Use environment variable if available, otherwise fallback to default URL
 const LIVSMEDELSVERKET_API = process.env.LIVSMEDELSVERKET_API_URL || 'https://dataportal.livsmedelsverket.se/livsmedel'
 
+// Vercel Hobby plan has 10s timeout, Pro has 60s
+// Use shorter timeout to avoid issues
+const API_TIMEOUT = 8000 // 8 seconds (safe for Hobby plan)
+
 interface NutritionData {
   namn: string  // Swedish field name
   varde: number  // Swedish field name
@@ -236,12 +240,12 @@ export async function POST(request: NextRequest) {
       console.log(`[Nutrition API] Attempting to fetch from Livsmedelsverket for: "${sanitizedFoodClass}"`)
       
       // Search for food with timeout - request more items per page
-      // Increased timeout for deployment (Vercel serverless functions may need more time)
+      // Note: Vercel Hobby plan has 10s max timeout, so we use 8s to be safe
       const searchResponse = await fetch(
         `${LIVSMEDELSVERKET_API}/api/v1/livsmedel?limit=100`,
         { 
           next: { revalidate: 3600 }, // Cache for 1 hour
-          signal: AbortSignal.timeout(20000), // 20 second timeout (increased for deployment)
+          signal: AbortSignal.timeout(API_TIMEOUT),
           headers: {
             'User-Agent': 'SmartFood-App/1.0',
             'Accept': 'application/json'
@@ -325,7 +329,7 @@ export async function POST(request: NextRequest) {
                 const pageResponse = await fetch(
                   `${LIVSMEDELSVERKET_API}/api/v1/livsmedel?offset=${offset}&limit=${itemsPerPage}`,
                   { 
-                    signal: AbortSignal.timeout(20000), // 20 second timeout
+                    signal: AbortSignal.timeout(API_TIMEOUT),
                     headers: {
                       'User-Agent': 'SmartFood-App/1.0',
                       'Accept': 'application/json'
@@ -393,7 +397,7 @@ export async function POST(request: NextRequest) {
             const nutritionResponse = await fetch(
               `${LIVSMEDELSVERKET_API}/api/v1/livsmedel/${matchingFood.nummer}/naringsvarden`,
               { 
-                signal: AbortSignal.timeout(20000), // 20 second timeout
+                signal: AbortSignal.timeout(API_TIMEOUT),
                 headers: {
                   'User-Agent': 'SmartFood-App/1.0',
                   'Accept': 'application/json'
@@ -434,7 +438,13 @@ export async function POST(request: NextRequest) {
                   return NextResponse.json({
                     source: 'Livsmedelsverket',
                     foodName: matchingFood.namn || sanitizedFoodClass.replace(/_/g, ' '),
-                    nutrition: formattedNutrition
+                    nutrition: formattedNutrition,
+                    // Add deployment identifier for debugging
+                    _debug: {
+                      apiUrl: LIVSMEDELSVERKET_API,
+                      timeout: API_TIMEOUT,
+                      deploymentTime: new Date().toISOString()
+                    }
                   })
                 } else {
                   console.log(`[Nutrition API] No calories found in nutrition data`)
@@ -473,7 +483,7 @@ export async function POST(request: NextRequest) {
           stack: apiError.stack
         })
       } else {
-        console.log('[Nutrition API] Request timeout (20s) - falling back to estimated values')
+        console.log(`[Nutrition API] Request timeout (${API_TIMEOUT}ms) - falling back to estimated values`)
       }
     }
 
@@ -487,7 +497,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       source: 'Estimated',
       foodName: sanitizedFoodClass.replace(/_/g, ' '),
-      nutrition: estimatedNutrition
+      nutrition: estimatedNutrition,
+      // Add deployment identifier for debugging
+      _debug: {
+        apiUrl: LIVSMEDELSVERKET_API,
+        timeout: API_TIMEOUT,
+        deploymentTime: new Date().toISOString(),
+        fallbackReason: 'Livsmedelsverket API unavailable or timeout'
+      }
     })
   } catch (error: any) {
     console.error('Nutrition fetch error:', error)
