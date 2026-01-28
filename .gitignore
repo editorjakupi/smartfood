@@ -28,7 +28,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/  # Only root-level Python lib directory, not src/lib/
 lib64/
 parts/
 sdist/
