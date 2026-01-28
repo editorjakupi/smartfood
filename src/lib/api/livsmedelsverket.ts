@@ -4,7 +4,8 @@
  * Interface for fetching nutrition data from Livsmedelsverket.
  */
 
-const BASE_URL = 'https://dataportal.livsmedelsverket.se/livsmedel'
+// Use environment variable if available, otherwise fallback to default URL
+const BASE_URL = process.env.LIVSMEDELSVERKET_API_URL || 'https://dataportal.livsmedelsverket.se/livsmedel'
 
 interface Food {
   nummer: number
@@ -41,7 +42,12 @@ export class LivsmedelsverketAPI {
   async searchFood(query: string): Promise<Food[]> {
     try {
       const response = await fetch(`${this.baseUrl}/api/v1/livsmedel`, {
-        next: { revalidate: 3600 } // Cache for 1 hour
+        next: { revalidate: 3600 }, // Cache for 1 hour
+        headers: {
+          'User-Agent': 'SmartFood-App/1.0',
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(20000) // 20 second timeout
       })
       
       if (!response.ok) {
@@ -66,7 +72,13 @@ export class LivsmedelsverketAPI {
    */
   async getFood(nummer: number): Promise<Food | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/livsmedel/${nummer}`)
+      const response = await fetch(`${this.baseUrl}/api/v1/livsmedel/${nummer}`, {
+        headers: {
+          'User-Agent': 'SmartFood-App/1.0',
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(20000) // 20 second timeout
+      })
       
       if (!response.ok) {
         return null
@@ -85,7 +97,14 @@ export class LivsmedelsverketAPI {
   async getNutritionValues(nummer: number): Promise<NutritionValue[]> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/v1/livsmedel/${nummer}/naringsvarden`
+        `${this.baseUrl}/api/v1/livsmedel/${nummer}/naringsvarden`,
+        {
+          headers: {
+            'User-Agent': 'SmartFood-App/1.0',
+            'Accept': 'application/json'
+          },
+          signal: AbortSignal.timeout(20000) // 20 second timeout
+        }
       )
       
       if (!response.ok) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const LIVSMEDELSVERKET_API = 'https://dataportal.livsmedelsverket.se/livsmedel'
+// Use environment variable if available, otherwise fallback to default URL
+const LIVSMEDELSVERKET_API = process.env.LIVSMEDELSVERKET_API_URL || 'https://dataportal.livsmedelsverket.se/livsmedel'
 
 interface NutritionData {
   namn: string  // Swedish field name
@@ -235,11 +236,16 @@ export async function POST(request: NextRequest) {
       console.log(`[Nutrition API] Attempting to fetch from Livsmedelsverket for: "${sanitizedFoodClass}"`)
       
       // Search for food with timeout - request more items per page
+      // Increased timeout for deployment (Vercel serverless functions may need more time)
       const searchResponse = await fetch(
         `${LIVSMEDELSVERKET_API}/api/v1/livsmedel?limit=100`,
         { 
           next: { revalidate: 3600 }, // Cache for 1 hour
-          signal: AbortSignal.timeout(10000) // 10 second timeout
+          signal: AbortSignal.timeout(20000), // 20 second timeout (increased for deployment)
+          headers: {
+            'User-Agent': 'SmartFood-App/1.0',
+            'Accept': 'application/json'
+          }
         }
       )
       
@@ -318,7 +324,13 @@ export async function POST(request: NextRequest) {
                 const offset = page * itemsPerPage  // Start from 100, 200, 300, etc.
                 const pageResponse = await fetch(
                   `${LIVSMEDELSVERKET_API}/api/v1/livsmedel?offset=${offset}&limit=${itemsPerPage}`,
-                  { signal: AbortSignal.timeout(10000) }
+                  { 
+                    signal: AbortSignal.timeout(20000), // 20 second timeout
+                    headers: {
+                      'User-Agent': 'SmartFood-App/1.0',
+                      'Accept': 'application/json'
+                    }
+                  }
                 )
                 
                 if (pageResponse.ok) {
@@ -380,7 +392,13 @@ export async function POST(request: NextRequest) {
             // Fetch nutrition values
             const nutritionResponse = await fetch(
               `${LIVSMEDELSVERKET_API}/api/v1/livsmedel/${matchingFood.nummer}/naringsvarden`,
-              { signal: AbortSignal.timeout(10000) }
+              { 
+                signal: AbortSignal.timeout(20000), // 20 second timeout
+                headers: {
+                  'User-Agent': 'SmartFood-App/1.0',
+                  'Accept': 'application/json'
+                }
+              }
             )
             
             if (nutritionResponse.ok) {
@@ -448,8 +466,14 @@ export async function POST(request: NextRequest) {
       // Log error but fall through to estimated values
       if (apiError.name !== 'AbortError') {
         console.error('[Nutrition API] Livsmedelsverket API error:', apiError.message)
+        console.error('[Nutrition API] API URL used:', LIVSMEDELSVERKET_API)
+        console.error('[Nutrition API] Error details:', {
+          name: apiError.name,
+          message: apiError.message,
+          stack: apiError.stack
+        })
       } else {
-        console.log('[Nutrition API] Request timeout (10s)')
+        console.log('[Nutrition API] Request timeout (20s) - falling back to estimated values')
       }
     }
 
