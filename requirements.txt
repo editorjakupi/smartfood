@@ -1,0 +1,48 @@
+# Deep Learning
+tensorflow>=2.13.0
+keras>=2.13.0
+tensorflow-datasets>=4.9.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Data Processing
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+pillow>=10.0.0
+opencv-python>=4.8.0
+
+# Hugging Face
+transformers>=4.35.0
+datasets>=2.14.0
+accelerate>=0.24.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Jupyter
+jupyter>=1.0.0
+ipykernel>=6.25.0
+nbformat>=5.9.0
+
+# API (for notebooks only)
+requests>=2.31.0
+aiohttp>=3.8.0
+
+# YAML
+pyyaml>=6.0.0
+
+# Utilities
+tqdm>=4.66.0
+python-dotenv>=1.0.0
+
+# Python Microservices (for Next.js integration)
+# Flask and flask-cors are needed for both LSTM and CNN prediction servers (automatically started by Next.js)
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# Note: Most dependencies are for training notebooks
+# Flask and flask-cors are needed for:
+# - LSTM prediction server (port 5000)
+# - CNN prediction server (port 5001)
