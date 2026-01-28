@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
             const cnnResult = await cnnResponse.json()
             if (cnnResult.class && !cnnResult.error && typeof cnnResult.class === 'string') {
               foodClass = cnnResult.class
-              label = foodClass.replace(/_/g, ' ')
+              label = cnnResult.class.replace(/_/g, ' ')
               confidence = cnnResult.confidence || 0.7
               modelUsed = 'local-cnn'
               console.log(`Successfully used local CNN model: ${label} (${foodClass})`)
