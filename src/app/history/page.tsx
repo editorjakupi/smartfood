@@ -2,15 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import HistoryChart from '@/components/HistoryChart'
-
-interface HistoryEntry {
-  date: string
-  foodClass: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-}
+import type { HistoryEntry } from '@/types/food'
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([])

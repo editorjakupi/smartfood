@@ -4,13 +4,18 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '',
-        pathname: '/**',
+        protocol: "http",
+        hostname: "localhost",
+        port: "",
+        pathname: "/**",
       },
     ],
   },
-}
+  typescript: {
+    // Temporarily ignore build errors to see if build completes
+    // Remove this after fixing TypeScript errors
+    ignoreBuildErrors: false,
+  },
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

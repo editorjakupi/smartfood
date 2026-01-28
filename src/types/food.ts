@@ -40,6 +40,7 @@ export interface HistoryEntry {
   protein: number
   carbs: number
   fat: number
+  fiber?: number
 }
 
 export interface PatternAnalysis {

@@ -85,7 +85,7 @@ export function useNutrition(): UseNutritionResult {
         protein: acc.protein + (entry.protein || 0),
         carbs: acc.carbs + (entry.carbs || 0),
         fat: acc.fat + (entry.fat || 0),
-        fiber: acc.fiber + 0 // fiber not in history entry
+        fiber: acc.fiber + (entry.fiber || 0)
       }),
       { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
     )
