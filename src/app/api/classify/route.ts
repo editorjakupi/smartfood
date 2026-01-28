@@ -140,6 +140,10 @@ function mapVisionLabelToFoodClass(label: string): string | null {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get base URL from request headers (works in both local and Vercel)
+    const host = request.headers.get('host') || 'localhost:3000'
+    const protocol = request.headers.get('x-forwarded-proto') || 'http'
+    const baseUrl = `${protocol}://${host}`
     const body = await request.json().catch(() => ({}))
     const { image } = body
     
@@ -313,7 +317,8 @@ export async function POST(request: NextRequest) {
     
     try {
       // Try Livsmedelsverket API first
-      const nutritionResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/nutrition`, {
+      // Use baseUrl from request headers (already set at function start)
+      const nutritionResponse = await fetch(`${baseUrl}/api/nutrition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ foodClass }),
