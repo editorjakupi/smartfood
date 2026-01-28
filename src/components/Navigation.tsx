@@ -1,9 +1,129 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { 
+  getUserName, 
+  setUserName, 
+  getUserInfo, 
+  getProfileId,
+  createProfile,
+  loginWithProfileId,
+  getUserProfiles,
+  switchToProfile,
+  clearProfile
+} from '@/lib/userId'
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [userName, setUserNameState] = useState<string | null>(null)
+  const [profileId, setProfileIdState] = useState<string | null>(null)
+  const [profiles, setProfiles] = useState<Array<{ id: string; name: string; lastUsed: string }>>([])
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showNameInput, setShowNameInput] = useState(false)
+  const [showCreateProfile, setShowCreateProfile] = useState(false)
+  const [showLoginProfile, setShowLoginProfile] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [profileIdInput, setProfileIdInput] = useState('')
+  const [copiedProfileId, setCopiedProfileId] = useState(false)
+
+  useEffect(() => {
+    const userInfo = getUserInfo()
+    setUserNameState(userInfo.userName)
+    setProfileIdState(userInfo.profileId)
+    setProfiles(userInfo.profiles)
+  }, [])
+
+  // Refresh user info when menu opens
+  useEffect(() => {
+    if (showUserMenu) {
+      const userInfo = getUserInfo()
+      setUserNameState(userInfo.userName)
+      setProfileIdState(userInfo.profileId)
+      setProfiles(userInfo.profiles)
+    }
+  }, [showUserMenu])
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showUserMenu && !target.closest('.user-menu-container')) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showUserMenu])
+
+  const handleSetName = () => {
+    if (nameInput.trim()) {
+      try {
+        setUserName(nameInput.trim())
+        setUserNameState(nameInput.trim())
+        setNameInput('')
+        setShowNameInput(false)
+        setShowUserMenu(false)
+        // Refresh page to update display name
+        window.location.reload()
+      } catch (error: any) {
+        alert(error.message || 'Failed to update profile name')
+      }
+    }
+  }
+
+  const handleCreateProfile = () => {
+    if (nameInput.trim()) {
+      try {
+        const newProfileId = createProfile(nameInput.trim())
+        setUserNameState(nameInput.trim())
+        setProfileIdState(newProfileId)
+        setNameInput('')
+        setShowCreateProfile(false)
+        setShowUserMenu(false)
+        // Reload to apply new profile
+        window.location.reload()
+      } catch (error: any) {
+        alert(error.message || 'Failed to create profile')
+      }
+    }
+  }
+
+  const handleLoginProfile = () => {
+    if (profileIdInput.trim()) {
+      try {
+        const success = loginWithProfileId(profileIdInput.trim())
+        if (success) {
+          const userInfo = getUserInfo()
+          setUserNameState(userInfo.userName)
+          setProfileIdState(userInfo.profileId)
+          setProfileIdInput('')
+          setShowLoginProfile(false)
+          setShowUserMenu(false)
+          // Reload to apply new profile
+          window.location.reload()
+        } else {
+          alert('Profile ID not found. Make sure you copied it correctly.')
+        }
+      } catch (error: any) {
+        alert(error.message || 'Failed to login with Profile ID')
+      }
+    }
+  }
+
+  const handleCopyProfileId = () => {
+    const currentProfileId = getProfileId()
+    if (currentProfileId) {
+      navigator.clipboard.writeText(currentProfileId)
+      setCopiedProfileId(true)
+      setTimeout(() => setCopiedProfileId(false), 2000)
+    }
+  }
+
+  const handleSwitchProfile = () => {
+    // Switch profile requires entering Profile ID (same as login)
+    setShowLoginProfile(true)
+    setShowUserMenu(true)
+  }
 
   return (
     <nav className="bg-white shadow-sm border-b">
@@ -31,6 +151,227 @@ export default function Navigation() {
             <a href="/predictions" className="text-gray-600 hover:text-gray-900 px-2 py-2 text-sm">
               Predictions
             </a>
+            {/* User Profile */}
+            <div className="relative user-menu-container">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-50"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span className="text-sm font-medium">
+                  {userName || 'User'}
+                </span>
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 user-menu-container max-h-96 overflow-y-auto">
+                  {showCreateProfile ? (
+                    <div className="p-3">
+                      <p className="text-xs text-gray-600 mb-2">
+                        Create a new profile to access your history from any device. A unique Profile ID will be generated automatically.
+                      </p>
+                      <p className="text-xs text-gray-500 mb-3">
+                        Save your Profile ID to access this profile from other devices.
+                      </p>
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        placeholder="Display name (e.g., Alice, Bob)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-2"
+                        autoFocus
+                        onKeyPress={(e) => e.key === 'Enter' && handleCreateProfile()}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleCreateProfile}
+                          className="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                        >
+                          Create Profile
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowCreateProfile(false)
+                            setNameInput('')
+                          }}
+                          className="flex-1 px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : showLoginProfile ? (
+                    <div className="p-3">
+                      <p className="text-xs text-gray-600 mb-2">
+                        Enter your Profile ID to login or switch to another profile.
+                      </p>
+                      <p className="text-xs text-gray-500 mb-3">
+                        Your Profile ID is shown in your profile menu. Save it to access your profile from any device.
+                      </p>
+                      <input
+                        type="text"
+                        value={profileIdInput}
+                        onChange={(e) => setProfileIdInput(e.target.value.trim())}
+                        placeholder="Paste Profile ID (UUID)"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-2 font-mono text-xs"
+                        autoFocus
+                        onKeyPress={(e) => e.key === 'Enter' && handleLoginProfile()}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleLoginProfile}
+                          className="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                        >
+                          Login / Switch
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowLoginProfile(false)
+                            setProfileIdInput('')
+                          }}
+                          className="flex-1 px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : showNameInput ? (
+                    <div className="p-3">
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        placeholder="Enter your name"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        autoFocus
+                        onKeyPress={(e) => e.key === 'Enter' && handleSetName()}
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={handleSetName}
+                          className="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowNameInput(false)
+                            setNameInput('')
+                          }}
+                          className="flex-1 px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="px-4 py-2 border-b border-gray-200">
+                        <p className="text-xs text-gray-500">Current Profile</p>
+                        <p className="text-sm font-medium text-gray-900">{userName || 'Anonymous'}</p>
+                        {profileId ? (
+                          <div className="mt-2">
+                            <p className="text-xs text-gray-500 mb-1">Profile ID:</p>
+                            <div className="flex items-center gap-2">
+                              <code className="text-xs font-mono bg-gray-100 px-2 py-1 rounded flex-1 break-all">
+                                {profileId}
+                              </code>
+                              <button
+                                onClick={handleCopyProfileId}
+                                className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded"
+                                title="Copy Profile ID"
+                              >
+                                {copiedProfileId ? '✓' : '📋'}
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-400 mt-1">
+                              Save this ID to access your profile from other devices
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 mt-1 italic">No profile set (using device fingerprint)</p>
+                        )}
+                      </div>
+                      
+                      {/* Switch Profile Section */}
+                      {profiles.length > 0 && (
+                        <div className="px-4 py-2 border-b border-gray-200">
+                          <p className="text-xs text-gray-500 mb-2">Switch Profile</p>
+                          <p className="text-xs text-gray-400 mb-2">
+                            Enter your Profile ID to switch to another profile
+                          </p>
+                          <div className="space-y-1 max-h-32 overflow-y-auto mb-2">
+                            {profiles.map((profile) => (
+                              <div
+                                key={profile.id}
+                                className={`w-full text-left px-2 py-1.5 text-xs rounded ${
+                                  profile.id === profileId ? 'bg-primary-50 text-primary-700' : 'text-gray-700'
+                                }`}
+                              >
+                                <div className="font-medium">{profile.name}</div>
+                                {profile.id === profileId && (
+                                  <div className="text-xs text-gray-500 mt-1">Current profile</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            onClick={handleSwitchProfile}
+                            className="w-full px-2 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded text-gray-700"
+                          >
+                            Enter Profile ID to Switch
+                          </button>
+                        </div>
+                      )}
+                      
+                      <button
+                        onClick={() => {
+                          setShowCreateProfile(true)
+                          setNameInput('')
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200"
+                      >
+                        Create New Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowLoginProfile(true)
+                          setProfileIdInput('')
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200"
+                      >
+                        Login / Switch Profile
+                      </button>
+                      {profileId && (
+                        <button
+                          onClick={() => {
+                            setShowNameInput(true)
+                            setNameInput(userName || '')
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200"
+                        >
+                          Change Profile Name
+                        </button>
+                      )}
+                      {profileId && (
+                        <button
+                          onClick={() => {
+                            if (confirm('Clear profile and switch to anonymous? Your history will remain but you\'ll need to login with your Profile ID again to access it.')) {
+                              clearProfile()
+                              window.location.reload()
+                            }
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          Clear Profile
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center">
@@ -66,11 +407,75 @@ export default function Navigation() {
             <a href="/history" className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 text-sm" onClick={() => setMobileMenuOpen(false)}>
               History
             </a>
-            <a href="/predictions" className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 text-sm" onClick={() => setMobileMenuOpen(false)}>
-              Predictions
-            </a>
-          </div>
-        )}
+              <a href="/predictions" className="block px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 text-sm" onClick={() => setMobileMenuOpen(false)}>
+                Predictions
+              </a>
+              <div className="border-t border-gray-200 mt-2 pt-2">
+                <div className="px-4 py-2 text-xs text-gray-500">
+                  User: {userName || 'Anonymous'}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowCreateProfile(true)
+                    setNameInput('')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  Create Profile
+                </button>
+                {profileId && (
+                  <button
+                    onClick={() => {
+                      setShowNameInput(true)
+                      setNameInput(userName || '')
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Change Profile Name
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          {/* Mobile Name Input Modal */}
+          {showNameInput && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden">
+              <div className="bg-white rounded-lg p-4 m-4 w-full max-w-sm">
+                <h3 className="text-lg font-semibold mb-2">Change Profile Name</h3>
+                <p className="text-xs text-gray-600 mb-3">
+                  Update your display name. Your Profile ID will remain unchanged.
+                </p>
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="Enter new name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-3"
+                  autoFocus
+                  onKeyPress={(e) => e.key === 'Enter' && handleSetName()}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSetName}
+                    className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNameInput(false)
+                      setNameInput('')
+                    }}
+                    className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
       </div>
     </nav>
   )

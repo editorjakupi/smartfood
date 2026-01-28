@@ -8,12 +8,19 @@ let dbType: 'postgres' | 'sqlite' = 'sqlite'
 if (process.env.POSTGRES_URL) {
   dbType = 'postgres'
   // Use standard PostgreSQL client (pg) for Neon compatibility
-  const { Pool } = require('pg')
-  const pool = new Pool({
-    connectionString: process.env.POSTGRES_URL,
-    ssl: process.env.POSTGRES_URL.includes('localhost') ? false : { rejectUnauthorized: false }
-  })
-  db = pool
+  // Dynamic import to avoid loading pg when using SQLite locally
+  try {
+    const { Pool } = require('pg')
+    const pool = new Pool({
+      connectionString: process.env.POSTGRES_URL,
+      ssl: process.env.POSTGRES_URL.includes('localhost') ? false : { rejectUnauthorized: false }
+    })
+    db = pool
+  } catch (error) {
+    console.error('Failed to load pg module. Make sure to run: npm install', error)
+    // Fallback to SQLite if pg is not available
+    dbType = 'sqlite'
+  }
   
   // Initialize Postgres tables (run once, ignore errors if exists)
   ;(async () => {

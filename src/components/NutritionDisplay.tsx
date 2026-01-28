@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { getUserId } from '@/lib/userId'
 
 interface NutritionDisplayProps {
   foodClass: string
@@ -82,10 +83,7 @@ export default function NutritionDisplay({
         fetchRecommendations()
 
         // Save to history (database) - only once per unique classification
-        const userId = localStorage.getItem('smartfood_user_id') || `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        if (!localStorage.getItem('smartfood_user_id')) {
-          localStorage.setItem('smartfood_user_id', userId)
-        }
+        const userId = getUserId()
         
         fetch('/api/history', {
           method: 'POST',

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { getUserId } from '@/lib/userId'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -38,7 +39,7 @@ export default function ChatInterface() {
   // Load chat messages from localStorage on mount
   useEffect(() => {
     try {
-      const userId = localStorage.getItem('smartfood_user_id')
+      const userId = getUserId()
       if (userId) {
         const savedMessages = localStorage.getItem(`smartfood_chat_${userId}`)
         if (savedMessages) {
@@ -56,7 +57,7 @@ export default function ChatInterface() {
   // Save chat messages to localStorage whenever they change
   useEffect(() => {
     try {
-      const userId = localStorage.getItem('smartfood_user_id')
+      const userId = getUserId()
       if (userId && messages.length > 0) {
         localStorage.setItem(`smartfood_chat_${userId}`, JSON.stringify(messages))
       }
@@ -68,7 +69,7 @@ export default function ChatInterface() {
   // Function to load/refresh history
   const loadHistory = async (): Promise<HistoryEntry[]> => {
     try {
-      const userId = localStorage.getItem('smartfood_user_id')
+      const userId = getUserId()
       if (userId) {
         const response = await fetch('/api/history', {
           headers: { 'x-user-id': userId }
@@ -147,7 +148,7 @@ export default function ChatInterface() {
       setMessages([])
       // Also clear from localStorage
       try {
-        const userId = localStorage.getItem('smartfood_user_id')
+        const userId = getUserId()
         if (userId) {
           localStorage.removeItem(`smartfood_chat_${userId}`)
         }

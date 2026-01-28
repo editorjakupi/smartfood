@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import type { NutritionData, HistoryEntry } from '@/types/food'
 import type { NutritionGoals, NutritionAnalysis } from '@/types/nutrition'
 import { DEFAULT_NUTRITION_GOALS, calculateNutritionPercentage, getNutritionStatus } from '@/types/nutrition'
+import { getUserId } from '@/lib/userId'
 
 interface UseNutritionResult {
   history: HistoryEntry[]
@@ -25,7 +26,7 @@ export function useNutrition(): UseNutritionResult {
   useEffect(() => {
     const loadHistory = async () => {
       try {
-        const userId = localStorage.getItem('smartfood_user_id')
+        const userId = getUserId()
         if (userId) {
           try {
             const response = await fetch('/api/history', {
@@ -119,7 +120,7 @@ export function useNutrition(): UseNutritionResult {
     setHistory(prev => {
       const updated = [...prev, newEntry].slice(-100) // Keep last 100
       // Save to database
-      const userId = localStorage.getItem('smartfood_user_id')
+      const userId = getUserId()
       if (userId) {
         fetch('/api/history', {
           method: 'POST',
@@ -152,7 +153,7 @@ export function useNutrition(): UseNutritionResult {
     
     setHistory([])
     // Delete from database
-    const userId = localStorage.getItem('smartfood_user_id')
+    const userId = getUserId()
     if (userId) {
       fetch('/api/history', {
         method: 'DELETE',

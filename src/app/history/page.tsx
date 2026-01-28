@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import HistoryChart from '@/components/HistoryChart'
 import type { HistoryEntry } from '@/types/food'
+import { getUserId } from '@/lib/userId'
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
@@ -14,7 +15,7 @@ export default function HistoryPage() {
     const loadHistory = async () => {
       try {
         setError(null)
-        const userId = localStorage.getItem('smartfood_user_id')
+        const userId = getUserId()
         if (!userId) {
           setLoading(false)
           return
@@ -48,7 +49,7 @@ export default function HistoryPage() {
     }
     
     try {
-      const userId = localStorage.getItem('smartfood_user_id')
+      const userId = getUserId()
       if (!userId) return
       
       const response = await fetch('/api/history', {
