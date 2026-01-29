@@ -241,53 +241,30 @@ export async function POST(request: NextRequest) {
       console.log('Google Cloud Vision API not configured')
     }
 
-    // If Google Cloud Vision failed or not configured, try local CNN model
+    // If Google Cloud Vision failed or not configured, try CNN model using TensorFlow.js
+    // TensorFlow.js works in both local development and serverless deployment (Vercel)
     if (!foodClass) {
-      const localCNNModel = path.join(process.cwd(), 'data', 'models', 'cnn', 'food_classifier_best.keras')
-      const localCNNModelAlt = path.join(process.cwd(), 'notebooks', 'data', 'models', 'cnn', 'food_classifier_best.keras')
-      const cnnScript = path.join(process.cwd(), 'cnn_predict.py')
-      
-      // Check if local CNN model exists
-      const cnnModelPath = fs.existsSync(localCNNModel) ? localCNNModel : 
-                           (fs.existsSync(localCNNModelAlt) ? localCNNModelAlt : null)
-      
-      if (cnnModelPath && fs.existsSync(cnnScript)) {
-        try {
-          console.log('Attempting to use local CNN model...')
-          
-          // Try to call CNN Python service directly (assumes server is running on port 5001)
-          // The CNN server should be started separately: python cnn_predict.py --server
-          const cnnServerUrl = 'http://localhost:5001'
-          
-          const cnnResponse = await fetch(`${cnnServerUrl}/predict`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: base64Data }),
-            signal: AbortSignal.timeout(15000) // 15 second timeout for CNN
-          })
-          
-          if (cnnResponse.ok) {
-            const cnnResult = await cnnResponse.json()
-            if (cnnResult.class && !cnnResult.error && typeof cnnResult.class === 'string') {
-              foodClass = cnnResult.class
-              label = cnnResult.class.replace(/_/g, ' ')
-              confidence = cnnResult.confidence || 0.7
-              modelUsed = 'local-cnn'
-              console.log(`Successfully used local CNN model: ${label} (${foodClass})`)
-            } else if (cnnResult.error) {
-              console.log('CNN model returned error:', cnnResult.error)
-            }
-          } else {
-            const errorText = await cnnResponse.text().catch(() => 'Unknown error')
-            console.log(`CNN server returned ${cnnResponse.status}: ${errorText}`)
-            console.log('Note: To use local CNN model, start the server with: python cnn_predict.py --server')
-          }
-        } catch (cnnError: any) {
-          console.log('Local CNN model failed:', cnnError.message)
-          console.log('Note: To use local CNN model, start the server with: python cnn_predict.py --server')
+      try {
+        console.log('Attempting to use CNN model (TensorFlow.js)...')
+        
+        // Import TensorFlow.js CNN implementation
+        const { predictCNN } = await import('@/lib/cnn-tfjs')
+        
+        const cnnResult = await predictCNN(base64Data)
+        
+        if (cnnResult && cnnResult.class) {
+          foodClass = cnnResult.class
+          label = cnnResult.label
+          confidence = cnnResult.confidence
+          modelUsed = 'local-cnn-tfjs'
+          console.log(`Successfully used CNN model (TensorFlow.js): ${label} (${foodClass})`)
+        } else {
+          console.log('CNN model (TensorFlow.js) returned no result')
         }
-      } else {
-        console.log('Local CNN model not available')
+      } catch (cnnError: any) {
+        // CNN model not available or error
+        console.log('CNN model (TensorFlow.js) not available:', cnnError.message)
+        console.log('Note: LSTM: python convert_lstm_to_tfjs_simple.py; CNN: convert in notebook (see README)')
       }
     }
 
@@ -327,9 +304,9 @@ export async function POST(request: NextRequest) {
       
       if (nutritionResponse.ok) {
         const nutritionData = await nutritionResponse.json()
-        if (nutritionData.nutrition && nutritionData.source === 'Livsmedelsverket') {
+        if (nutritionData.nutrition) {
           nutrition = nutritionData.nutrition
-          nutritionSource = 'Livsmedelsverket'
+          nutritionSource = nutritionData.source || 'Estimated'
         } else {
           nutrition = getNutrition(foodClass)
         }

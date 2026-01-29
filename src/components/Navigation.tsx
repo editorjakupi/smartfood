@@ -43,16 +43,20 @@ export default function Navigation() {
     }
   }, [showUserMenu])
 
-  // Close user menu when clicking outside
+  // Close user menu when clicking/touching outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target as HTMLElement
       if (showUserMenu && !target.closest('.user-menu-container')) {
         setShowUserMenu(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [showUserMenu])
 
   const handleSetName = () => {
@@ -420,9 +424,19 @@ export default function Navigation() {
                     setNameInput('')
                     setMobileMenuOpen(false)
                   }}
-                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center"
                 >
                   Create Profile
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLoginProfile(true)
+                    setProfileIdInput('')
+                    setMobileMenuOpen(false)
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center"
+                >
+                  Login / Switch Profile
                 </button>
                 {profileId && (
                   <button
@@ -431,7 +445,7 @@ export default function Navigation() {
                       setNameInput(userName || '')
                       setMobileMenuOpen(false)
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center"
                   >
                     Change Profile Name
                   </button>
@@ -441,8 +455,8 @@ export default function Navigation() {
           )}
           {/* Mobile Name Input Modal */}
           {showNameInput && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden">
-              <div className="bg-white rounded-lg p-4 m-4 w-full max-w-sm">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden p-4">
+              <div className="bg-white rounded-lg p-4 w-full max-w-sm">
                 <h3 className="text-lg font-semibold mb-2">Change Profile Name</h3>
                 <p className="text-xs text-gray-600 mb-3">
                   Update your display name. Your Profile ID will remain unchanged.
@@ -459,7 +473,7 @@ export default function Navigation() {
                 <div className="flex gap-2">
                   <button
                     onClick={handleSetName}
-                    className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+                    className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
                   >
                     Save
                   </button>
@@ -468,7 +482,87 @@ export default function Navigation() {
                       setShowNameInput(false)
                       setNameInput('')
                     }}
-                    className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 min-h-[44px]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Mobile Create Profile Modal */}
+          {showCreateProfile && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden p-4 overflow-y-auto">
+              <div className="bg-white rounded-lg p-4 w-full max-w-sm my-auto">
+                <h3 className="text-lg font-semibold mb-2">Create Profile</h3>
+                <p className="text-xs text-gray-600 mb-2">
+                  Create a new profile to access your history from any device. A unique Profile ID will be generated.
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  Save your Profile ID to access this profile from other devices.
+                </p>
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="Display name (e.g., Alice, Bob)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-3"
+                  autoFocus
+                  onKeyPress={(e) => e.key === 'Enter' && handleCreateProfile()}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCreateProfile}
+                    className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
+                  >
+                    Create Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateProfile(false)
+                      setNameInput('')
+                    }}
+                    className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 min-h-[44px]"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Mobile Login / Switch Profile Modal */}
+          {showLoginProfile && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden p-4 overflow-y-auto">
+              <div className="bg-white rounded-lg p-4 w-full max-w-sm my-auto">
+                <h3 className="text-lg font-semibold mb-2">Login / Switch Profile</h3>
+                <p className="text-xs text-gray-600 mb-2">
+                  Enter your Profile ID to login or switch to another profile.
+                </p>
+                <p className="text-xs text-gray-500 mb-3">
+                  Your Profile ID is shown in your profile menu. Save it to access your profile from any device.
+                </p>
+                <input
+                  type="text"
+                  value={profileIdInput}
+                  onChange={(e) => setProfileIdInput(e.target.value.trim())}
+                  placeholder="Paste Profile ID (UUID)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-3 font-mono text-xs"
+                  autoFocus
+                  onKeyPress={(e) => e.key === 'Enter' && handleLoginProfile()}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleLoginProfile}
+                    className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
+                  >
+                    Login / Switch
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowLoginProfile(false)
+                      setProfileIdInput('')
+                    }}
+                    className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 min-h-[44px]"
                   >
                     Cancel
                   </button>

@@ -1,398 +1,117 @@
-# SmartFood - AI Food Classification & Nutrition Assistant
+# SmartFood
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+**Live:** [https://smartfood-ten.vercel.app/](https://smartfood-ten.vercel.app/)
 
-**🌐 Live Demo**: [https://smartfood-ten.vercel.app/](https://smartfood-ten.vercel.app/)
+Web app that identifies food from images, shows nutrition data (per 100 g), and provides eating-pattern predictions and dietary advice. Built with Next.js, TypeScript, and AI/ML (Google Cloud Vision, Livsmedelsverket, Groq/Llama 3.1, optional CNN/LSTM via TensorFlow.js).
 
-An intelligent web application that identifies food from images using deep learning and provides comprehensive nutrition information, personalized dietary recommendations, and eating pattern analysis.
+---
 
 ## Features
 
-- **Food Classification**: Upload food images and get instant identification using:
-  - **Google Cloud Vision API**: High-accuracy food classification (primary, 1000 free requests/month)
-  - **Local CNN Model** (when available): Your trained EfficientNetB4 model (fallback)
-- **Nutrition Information**: View detailed nutrition data including calories, protein, carbs, fat, and fiber
-- **AI Chat Assistant**: Ask nutrition questions and get personalized dietary advice powered by Llama 3.1
-- **Eating History**: Track your food intake over time with visual charts and statistics
-- **Camera Support**: Capture food photos directly from your device camera
-- **User Profiles**: UUID-based profile system allowing multiple users on the same device with separate histories
-- **Cross-Device Access**: Access your profile from any device using your unique Profile ID
-- **User Separation**: Each user has their own isolated data using SQLite (local) or Postgres (production)
+- **Food classification** — Image to food type via Google Cloud Vision (primary) or local CNN model (fallback when available).
+- **Nutrition** — Livsmedelsverket (primary) and Open Food Facts (fallback) use free, open APIs; then Llama 3.1 estimates → generic category values. Values are per 100 g; the app does not detect portion size from the image.
+- **Translation** — English food names translated to Swedish via Llama 3.1 (fallback: hardcoded list) for Livsmedelsverket lookup.
+- **Predictions** — Expected next meal (calories and type) and personalized tips from eating history (LSTM or simplified model when TF.js model is unavailable).
+- **Chat** — Dietary advice powered by Llama 3.1 (Groq).
+- **History, camera, profiles** — Per-user history (SQLite locally, Postgres in production); camera capture; create/login/switch profiles (including on mobile).
 
-## Tech Stack
+---
 
-### Frontend
+## Tech stack
 
-- **Next.js 14** with App Router
-- **TypeScript** for type safety
-- **Tailwind CSS** for styling
-- **React** with custom hooks
-- **Recharts** for data visualization
+| Layer            | Stack                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| Frontend         | Next.js 14 (App Router), TypeScript, Tailwind CSS, Recharts                                    |
+| Backend          | Next.js API routes, SQLite (local) / Postgres (production)                                     |
+| Food / nutrition | Google Cloud Vision, Livsmedelsverket API, Groq (Llama 3.1), optional CNN/LSTM (TensorFlow.js) |
 
-### Backend & APIs
-
-- **Next.js API Routes** for backend logic
-- **SQLite** (better-sqlite3) for local development
-- **Postgres** (Neon/Vercel Postgres) for production deployment
-- **Google Cloud Vision API** for food classification (primary, 1000 free requests/month)
-- **Local CNN Model** for food classification (fallback when available)
-- **Groq API** for fast LLM inference (both local and deployment)
-- **Livsmedelsverket API** for Swedish nutrition data
-
-### AI/ML Models
-
-- **Food Classification**: Two-tier approach for maximum accuracy
-  1. **Google Cloud Vision API** (PRIMARY): High-accuracy food classification (1000 free requests/month)
-  2. **Local CNN Model** (fallback): Your trained EfficientNetB4 model on Food-101 (when available)
-- **LSTM**: Bidirectional LSTM for eating pattern prediction (automatically started)
-- **LLM**: Llama 3.1 8B via Groq API for chat functionality
+---
 
 ## Prerequisites
 
 - **Node.js** 18+ and npm
-- **Python** 3.9+ (for LSTM and CNN model predictions - automatically started by Next.js)
-- **Groq API Key** (free at [console.groq.com](https://console.groq.com)) - required for both local and deployment
-- **Google Cloud Vision API Key** (required, free tier: 1000 requests/month at [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)) - for food classification
-
-## Getting Started
-
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/your-username/smartfood.git
-   cd smartfood
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Install Python dependencies (for CNN and LSTM models - optional)**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   Note: Python is only needed if you want to use the local CNN or LSTM models. The app works with Google Cloud Vision API without Python. To use local models, start them manually:
-   - CNN: `python cnn_predict.py --server` (runs on port 5001)
-   - LSTM: `python lstm_predict.py --server` (runs on port 5002)
-
-4. **Set up environment variables**
-
-   Copy `.env.example` to `.env.local`:
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Edit `.env.local` and add your configuration:
-
-   ```env
-   # Groq API key (required for both local and deployment)
-   # Get your API key at: https://console.groq.com
-   GROQ_API_KEY=your_groq_api_key_here
-
-   # Google Cloud Vision API key (required for food classification)
-   # Get your API key at: https://console.cloud.google.com/apis/credentials
-   GOOGLE_CLOUD_VISION_API_KEY=your_google_cloud_vision_api_key_here
-
-   # Livsmedelsverket API URL (optional, defaults to public API)
-   LIVSMEDELSVERKET_API_URL=https://dataportal.livsmedelsverket.se/livsmedel
-
-   # Postgres URL (for production, automatically set by Vercel)
-   # POSTGRES_URL=postgresql://...
-   ```
-
-### Running the Application
-
-#### Development Mode
-
-1. **Start the Next.js development server**
-
-   ```bash
-   npm run dev
-   ```
-
-2. **Open your browser**
-
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-   **Note**: Make sure you have set `GROQ_API_KEY` in your `.env.local` file.
-
-#### Production Build
-
-```bash
-# Build the application
-npm run build
-
-# Start production server
-npm start
-```
-
-## Project Structure
-
-```
-smartfood/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/                # API routes
-│   │   │   ├── chat/           # Chat endpoint
-│   │   │   ├── classify/       # Image classification
-│   │   │   ├── history/        # Food history CRUD
-│   │   │   ├── nutrition/      # Nutrition data
-│   │   │   └── recommendations/ # Dietary recommendations
-│   │   ├── camera/             # Camera page
-│   │   ├── chat/               # Chat page
-│   │   ├── history/            # History page
-│   │   ├── layout.tsx          # Root layout
-│   │   └── page.tsx            # Home page
-│   ├── components/             # React components
-│   │   ├── CameraCapture.tsx
-│   │   ├── ChatInterface.tsx
-│   │   ├── FoodClassifier.tsx
-│   │   ├── HistoryChart.tsx
-│   │   └── NutritionDisplay.tsx
-│   ├── hooks/                  # Custom React hooks
-│   │   ├── useChat.ts
-│   │   ├── useFoodClassifier.ts
-│   │   └── useNutrition.ts
-│   ├── lib/                    # Utilities
-│   │   └── db.ts               # SQLite database operations
-│   └── types/                  # TypeScript type definitions
-│       ├── api.ts
-│       ├── chat.ts
-│       ├── food.ts
-│       └── nutrition.ts
-├── notebooks/                  # Jupyter notebooks (training)
-│   ├── cnn/
-│   │   └── cnn_training_complete.ipynb
-│   └── lstm/
-│       └── lstm_eating_patterns.ipynb
-├── data/                       # Data directory (gitignored)
-│   └── models/                 # Trained models
-│       ├── cnn/
-│       └── lstm/
-├── test_images/               # Sample test images
-├── .env.example                # Environment variables template
-├── .gitignore
-├── package.json
-├── tsconfig.json
-├── tailwind.config.js
-└── README.md
-```
-
-## API Endpoints
-
-| Endpoint               | Method | Description                                                     |
-| ---------------------- | ------ | --------------------------------------------------------------- |
-| `/api/classify`        | POST   | Classify food image (returns food class, confidence, nutrition) |
-| `/api/nutrition`       | POST   | Get nutrition data for a food class                             |
-| `/api/chat`            | POST   | Chat with nutrition assistant                                   |
-| `/api/recommendations` | POST   | Get personalized dietary recommendations                        |
-| `/api/history`         | GET    | Get user's food history                                         |
-| `/api/history`         | POST   | Add food entry to history                                       |
-| `/api/history`         | DELETE | Delete food history (with optional `?id=entryId`)               |
-
-### Example API Usage
-
-**Classify Food Image:**
-
-```bash
-curl -X POST http://localhost:3000/api/classify \
-  -H "Content-Type: application/json" \
-  -d '{"image": "data:image/jpeg;base64,..."}'
-```
-
-**Get Nutrition Data:**
-
-```bash
-curl -X POST http://localhost:3000/api/nutrition \
-  -H "Content-Type: application/json" \
-  -d '{"foodClass": "pizza"}'
-```
-
-## Training Notebooks
-
-The `notebooks/` folder contains Jupyter notebooks demonstrating the ML training process:
-
-### CNN Training (`notebooks/cnn/cnn_training_complete.ipynb`)
-
-- Transfer learning with EfficientNetB4 on Food-101 dataset
-- Sequential API implementation
-- Two-phase training: frozen base → fine-tuning
-- **Note**: Production primarily uses Google Cloud Vision API. Local CNN model (food_classifier_best.keras) is available as fallback when the model file exists and the Python server is running
-
-### LSTM Training (`notebooks/lstm/lstm_eating_patterns.ipynb`)
-
-- Bidirectional LSTM for eating pattern prediction
-- Multi-output: calories regression + category classification
-- Achieves ~88% category accuracy
-
-To run notebooks:
-
-```bash
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Start Jupyter
-jupyter notebook
-```
-
-## Database
-
-The application uses different databases for local development and production:
-
-### Local Development (SQLite)
-
-- **Location**: `data/smartfood.db` (gitignored)
-- **Schema**:
-  - `users` table: User IDs (UUIDs)
-  - `food_history` table: Food entries with nutrition data
-- **Features**: Automatic user creation, foreign key constraints, indexes for performance
-
-### Production (Postgres)
-
-- **Database**: Neon Postgres or Vercel Postgres
-- **Connection**: Automatically configured via `POSTGRES_URL` environment variable
-- **Schema**: Same as SQLite (migrated automatically)
-
-### User Profiles
-
-- **UUID-based**: Each profile gets a unique UUID when created
-- **Display Names**: User-friendly names shown in UI (e.g., "Alice", "Bob")
-- **Profile ID**: Unique UUID that can be used to access profile from any device
-- **Multiple Users**: Multiple users can use the same device with separate profiles
-- **Cross-Device**: Access your profile from any device using your Profile ID
-
-## Configuration
-
-### Groq API Setup
-
-The app uses Groq API for LLM functionality in both development and production.
-
-1. **Get your API key**
-   - Sign up at [console.groq.com](https://console.groq.com)
-   - Create a new API key
-   - Copy the key to your `.env.local` file as `GROQ_API_KEY`
-
-2. **Verify your setup**
-   - The app will use Groq API automatically once `GROQ_API_KEY` is configured
-   - No local setup or additional services required
-
-## Deployment
-
-### Vercel (Recommended & Currently Deployed)
-
-**🌐 Live Application**: [https://smartfood-ten.vercel.app/](https://smartfood-ten.vercel.app/)
-
-1. Push your code to GitHub
-2. Import project in [Vercel](https://vercel.com)
-3. Set up Vercel Postgres database (or connect Neon Postgres)
-4. Add environment variables:
-   - `GROQ_API_KEY` (your Groq API key)
-   - `GOOGLE_CLOUD_VISION_API_KEY` (your Google Cloud Vision API key)
-   - `POSTGRES_URL` (automatically set if using Vercel Postgres)
-   - `LIVSMEDELSVERKET_API_URL` (optional, defaults to public API)
-   - `NEXT_PUBLIC_BASE_URL` (optional, defaults to Vercel URL)
-5. Deploy! Changes are automatically deployed on every push to main branch
-
-### Other Platforms
-
-The app can be deployed to any platform supporting Next.js:
-
-- **Netlify**: Connect GitHub repo, add environment variables
-- **Railway**: Deploy from GitHub, configure environment variables
-- **Docker**: Build with `docker build -t smartfood .` (add Dockerfile)
-
-## Testing
-
-Test images are available in the `test_images/` folder. Upload them through the web interface to test classification accuracy.
-
-### Manual Testing Checklist
-
-- [ ] Upload food image and verify classification
-- [ ] Check nutrition information display
-- [ ] Test camera capture functionality
-- [ ] Verify chat assistant responses
-- [ ] Test history tracking and charts
-- [ ] Verify user data separation (test with multiple profiles)
-- [ ] Test profile creation and login with Profile ID
-- [ ] Test cross-device profile access
-
-## Troubleshooting
-
-### Groq API Issues
-
-If you get "Groq API error" messages:
-
-1. **Verify your API key:**
-   - Check that `GROQ_API_KEY` is set in your `.env.local` file
-   - Ensure there are no extra spaces or quotes around the key
-   - Verify the key is valid at [console.groq.com](https://console.groq.com)
-
-2. **Check API rate limits:**
-   - Groq free tier has rate limits
-   - If you hit limits, wait a few minutes and try again
-   - Consider upgrading your Groq plan for higher limits
-
-3. **Network issues:**
-   - Ensure you have internet connection
-   - Check browser console for detailed error messages
-
-### Database Issues
-
-**Local Development (SQLite):**
-
-1. Delete `data/smartfood.db` and restart the app (database will be recreated)
-2. Ensure `data/` directory has write permissions
-3. Check that `better-sqlite3` compiled correctly: `npm rebuild better-sqlite3`
-
-**Production (Postgres):**
-
-1. Verify `POSTGRES_URL` is set correctly in Vercel environment variables
-2. Check database connection in Vercel dashboard
-3. Ensure database tables are created (they're created automatically on first API call)
-
-### Classification Issues
-
-- Ensure you have internet connection (uses Google Cloud Vision API)
-- Check that `GOOGLE_CLOUD_VISION_API_KEY` is set in `.env.local`
-- Verify image format (JPEG, PNG supported)
-- If Google Cloud Vision fails, local CNN model will be used as fallback (if available)
-- To use local CNN model: Start the server with `python cnn_predict.py --server` (runs on port 5001)
-- To use local LSTM model: Start the server with `python lstm_predict.py --server` (runs on port 5002)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## Support
-
-For issues and questions, please open an issue on GitHub.
-
-## Acknowledgments
-
-- Food-101 dataset and model providers
-- Google Cloud Vision API for food classification
-- Groq for fast LLM inference (Llama 3.1)
-- Livsmedelsverket for nutrition data
+- **GROQ_API_KEY** — Chat, translation, and nutrition fallback (get at [console.groq.com](https://console.groq.com))
+- **GOOGLE_CLOUD_VISION_API_KEY** — Food classification (get at [Google Cloud Console](https://console.cloud.google.com/apis/credentials))
+- **Python** 3.9+ — Only for training and converting models; the app runs models in Node via TensorFlow.js
+
+Nutrition data: Livsmedelsverket (primary) and Open Food Facts (fallback) are free, open APIs (no API keys required).
 
 ---
 
-**Built with Next.js, TypeScript, and AI/ML technologies**
+## Getting started
+
+**Run in PowerShell (Windows) or terminal (macOS/Linux).**
+
+```bash
+git clone <repo-url>
+cd smartfood
+npm install
+cp .env.example .env.local
+```
+
+Edit `.env.local` and set at least:
+
+- `GROQ_API_KEY`
+- `GOOGLE_CLOUD_VISION_API_KEY`
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+---
+
+## Training and TensorFlow.js conversion
+
+Models are trained in Jupyter. TensorFlow.js conversion runs reliably on **Ubuntu or WSL** (on Windows, the `tensorflowjs` pip package can fail due to `tensorflow-decision-forests`; use WSL or see [scripts/install_tfjs_converter_windows.md](scripts/install_tfjs_converter_windows.md)).
+
+**Run in Ubuntu or WSL:**
+
+```bash
+cd smartfood
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install tensorflow tensorflowjs h5py
+jupyter notebook --allow-root
+```
+
+- **CNN:** `notebooks/cnn/cnn_training_complete.ipynb` — Saves the model and can convert to TF.js in the notebook.
+- **LSTM:** `notebooks/lstm/lstm_eating_patterns.ipynb` — Saves `.h5`. After training, convert with:
+
+```bash
+python convert_lstm_to_tfjs_simple.py
+```
+
+Output: `data/models/lstm/tfjs/` (and the equivalent path for CNN). Next.js loads these; no Python server is required in production.
+
+---
+
+## Database
+
+- **Local:** SQLite at `data/smartfood.db`
+- **Production:** Postgres (e.g. Vercel Postgres, Neon); set `POSTGRES_URL`
+
+---
+
+## Deployment (Vercel)
+
+1. Connect the repo to Vercel.
+2. Set environment variables: `GROQ_API_KEY`, `GOOGLE_CLOUD_VISION_API_KEY`, `POSTGRES_URL` (if using Postgres).
+3. Deploy.
+
+---
+
+## Troubleshooting
+
+- **Groq errors** — Check `GROQ_API_KEY` in `.env.local` (no extra spaces or quotes).
+- **Classification** — Requires `GOOGLE_CLOUD_VISION_API_KEY` and network access.
+- **Nutrition** — Livsmedelsverket (primary), Open Food Facts (fallback; free open API) → Llama 3.1 estimates → generic values. Translation: Llama 3.1 → hardcoded.
+- **SQLite** — If the DB is corrupted, delete `data/smartfood.db` and restart; tables are created on first use.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -101,10 +101,10 @@ export default function PredictionsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            AI Predictions
+            Eating Pattern Predictions
           </h1>
-          <p className="text-gray-600">
-            Predictions about your next meal based on your eating patterns
+          <p className="text-gray-600 max-w-2xl">
+            <strong>Purpose:</strong> See expected next meal (calories and type) and get personalized tips from your history — so you can easily plan meals and balance your diet.
           </p>
         </div>
         <button
@@ -204,46 +204,101 @@ export default function PredictionsPage() {
         <div className="space-y-6">
           {/* Predictions */}
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Predictions</h2>
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Expected next meal</h2>
+              <p className="text-gray-600 text-sm">
+                Based on your eating history — use this to plan portions and food choices.
+              </p>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
-              {data.predictions.map((pred, index) => (
-                <div key={index} className="bg-white rounded-lg shadow p-6 border border-gray-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 capitalize">
-                      {pred.type.replace(/_/g, ' ')}
-                    </h3>
-                    {pred.confidence !== undefined && (
-                      <span className="px-2 py-1 text-xs font-medium bg-primary-100 text-primary-800 rounded">
-                        {(pred.confidence * 100).toFixed(0)}% confidence
-                      </span>
+              {data.predictions.map((pred, index) => {
+                const isCaloriePrediction = pred.type.includes('calories') || pred.type.includes('daily')
+                const isCategoryPrediction = pred.type.includes('category') || pred.type.includes('meal')
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={`rounded-lg shadow-lg p-6 border-2 ${
+                      isCaloriePrediction 
+                        ? 'bg-gradient-to-br from-orange-50 to-yellow-50 border-orange-200' 
+                        : isCategoryPrediction
+                          ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200'
+                          : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {isCaloriePrediction && (
+                          <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                          </svg>
+                        )}
+                        {isCategoryPrediction && (
+                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        )}
+                        <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                          {pred.type.replace(/_/g, ' ')}
+                        </h3>
+                      </div>
+                      {pred.confidence !== undefined && (
+                        <span className={`px-2 py-1 text-xs font-medium rounded ${
+                          pred.confidence > 0.8 
+                            ? 'bg-green-100 text-green-800' 
+                            : pred.confidence > 0.6
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {(pred.confidence * 100).toFixed(0)}% confidence
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-lg font-medium mb-3 ${
+                      isCaloriePrediction ? 'text-orange-900' : isCategoryPrediction ? 'text-blue-900' : 'text-gray-700'
+                    }`}>
+                      {pred.prediction}
+                    </p>
+                    <p className="text-xs text-gray-500 italic mb-2">{pred.basedOn}</p>
+                    {pred.details && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        {pred.details.calories && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium text-gray-700">Calories:</span>
+                            <span className="text-orange-600 font-semibold">{pred.details.calories} kcal</span>
+                          </div>
+                        )}
+                        {pred.details.category && (
+                          <div className="flex items-center gap-2 text-sm mt-1">
+                            <span className="font-medium text-gray-700">Category:</span>
+                            <span className="text-blue-600 font-semibold capitalize">{pred.details.category}</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                  <p className="text-gray-700 mb-3">{pred.prediction}</p>
-                  <p className="text-xs text-gray-500 italic">{pred.basedOn}</p>
-                  {pred.details && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <p className="text-xs text-gray-600">
-                        <strong>Details:</strong> {JSON.stringify(pred.details, null, 2)}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
           {/* Patterns */}
           {data.patterns && data.patterns.length > 0 && (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Detected Patterns</h2>
-              <div className="bg-white rounded-lg shadow p-6">
-                <ul className="space-y-2">
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Your eating patterns</h2>
+                <p className="text-gray-600 text-sm">
+                  Patterns from your eating history — variety, calories, and meal times.
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+                <ul className="space-y-3">
                   {data.patterns.map((pattern, index) => (
-                    <li key={index} className="flex items-start gap-2">
+                    <li key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                       <svg className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
-                      <span className="text-gray-700">{pattern}</span>
+                      <span className="text-gray-800 font-medium">{pattern}</span>
                     </li>
                   ))}
                 </ul>
@@ -254,15 +309,20 @@ export default function PredictionsPage() {
           {/* Recommendations */}
           {data.recommendations && data.recommendations.length > 0 && (
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Recommendations</h2>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <ul className="space-y-2">
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Health tips</h2>
+                <p className="text-gray-600 text-sm">
+                  Personalized suggestions from your patterns — for a more balanced diet.
+                </p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-lg shadow-lg p-6">
+                <ul className="space-y-3">
                   {data.recommendations.map((rec, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <li key={index} className="flex items-start gap-3 p-3 bg-white bg-opacity-60 rounded-lg backdrop-blur-sm">
+                      <svg className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                       </svg>
-                      <span className="text-blue-800">{rec}</span>
+                      <span className="text-blue-900 font-medium">{rec}</span>
                     </li>
                   ))}
                 </ul>

@@ -139,6 +139,9 @@ export default function NutritionDisplay({
           </span>
         </div>
 
+        <p className="text-xs text-gray-500 mb-3">
+          Estimate per 100 g — the app does not measure portion size from the image, only the food type.
+        </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-gray-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-gray-900">
@@ -179,11 +182,15 @@ export default function NutritionDisplay({
             <span className={`ml-2 font-medium ${
               nutritionSource === 'Livsmedelsverket' 
                 ? 'text-green-600' 
-                : 'text-gray-600'
+                : nutritionSource === 'Open Food Facts'
+                  ? 'text-blue-600'
+                  : 'text-gray-600'
             }`}>
               {nutritionSource === 'Livsmedelsverket' 
-                ? '✓ Livsmedelsverket (Official)' 
-                : 'Estimated'}
+                ? 'Livsmedelsverket (Official)' 
+                : nutritionSource === 'Open Food Facts'
+                  ? 'Open Food Facts'
+                  : 'Estimated'}
             </span>
           </div>
         )}

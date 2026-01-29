@@ -7,17 +7,21 @@ const LIVSMEDELSVERKET_API = process.env.LIVSMEDELSVERKET_API_URL || 'https://da
 // Use shorter timeout to avoid issues
 const API_TIMEOUT = 8000 // 8 seconds (safe for Hobby plan)
 
+// Configuration for Groq API (Llama 3.1)
+const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
+const GROQ_MODEL = 'llama-3.1-8b-instant'
+
+// Cache for translations to avoid repeated API calls
+const translationCache = new Map<string, string[]>()
+
 interface NutritionData {
   namn: string  // Swedish field name
   varde: number  // Swedish field name
   enhet: string  // Swedish field name
 }
 
-// Translate English food class names to Swedish for Livsmedelsverket API search
-// This ensures better matching with the Swedish food database
-function translateToSwedish(foodClass: string): string[] {
-  const normalized = foodClass.toLowerCase().trim().replace(/_/g, ' ')
-  
+// FALLBACK: Hardcoded translations (only used when Llama 3.1 fails or unavailable)
+function getHardcodedTranslation(normalized: string): string[] {
   // Comprehensive mapping of English food names to Swedish equivalents
   const translations: Record<string, string[]> = {
     // Common foods
@@ -173,11 +177,254 @@ function translateToSwedish(foodClass: string): string[] {
   return [normalized]
 }
 
-// Get estimated nutrition based on food type
-// Fallback when Livsmedelsverket API fails
-function getEstimatedNutrition(foodClass: string): Record<string, number> {
-  const foodLower = foodClass.toLowerCase()
+// Translate English food class names to Swedish
+// PRIMARY: Llama 3.1 via Groq API (intelligent, handles any food name)
+// FALLBACK: Hardcoded translations (only if Groq API fails or unavailable)
+async function translateToSwedish(foodClass: string): Promise<string[]> {
+  const normalized = foodClass.toLowerCase().trim().replace(/_/g, ' ')
   
+  // Check cache first
+  if (translationCache.has(normalized)) {
+    return translationCache.get(normalized)!
+  }
+  
+  // PRIMARY: Try Llama 3.1 first (if API key available)
+  if (!GROQ_API_KEY) {
+    // FALLBACK: Use hardcoded translations only if Groq API key not configured
+    return getHardcodedTranslation(normalized)
+  }
+  
+  try {
+    // Use Llama 3.1 to translate food name to Swedish
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a food translation expert. Translate English food names to Swedish. Return only a JSON array of Swedish translations, no other text. Example: ["pizza", "pizzaslice"]'
+          },
+          {
+            role: 'user',
+            content: `Translate this food name to Swedish: "${foodClass}". Return a JSON array with 1-3 Swedish translations that would be used in a Swedish food database.`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 100
+      }),
+      signal: AbortSignal.timeout(5000) // 5 second timeout
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      const translationText = data.choices?.[0]?.message?.content?.trim() || ''
+      
+      // Try to parse JSON array from response
+      try {
+        // Remove markdown code blocks if present
+        const cleaned = translationText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        const translations = JSON.parse(cleaned)
+        
+        if (Array.isArray(translations) && translations.length > 0) {
+          const result = translations.filter((t: any) => typeof t === 'string' && t.length > 0)
+          if (result.length > 0) {
+            translationCache.set(normalized, result)
+            return result
+          }
+        }
+      } catch (parseError) {
+        // If JSON parsing fails, try to extract array from text
+        const arrayMatch = translationText.match(/\[.*?\]/)
+        if (arrayMatch) {
+          try {
+            const translations = JSON.parse(arrayMatch[0])
+            if (Array.isArray(translations) && translations.length > 0) {
+              const result = translations.filter((t: any) => typeof t === 'string' && t.length > 0)
+              if (result.length > 0) {
+                translationCache.set(normalized, result)
+                return result
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (error: any) {
+    // FALLBACK: If Groq API fails, use hardcoded translations
+    console.log(`[Translation] Groq API failed for "${foodClass}", using hardcoded fallback:`, error.message)
+  }
+  
+  // FALLBACK: Use hardcoded translations if Llama 3.1 failed
+  return getHardcodedTranslation(normalized)
+}
+
+// Open Food Facts API (free, English, no API key) - used as fallback when Livsmedelsverket has no match
+const OPEN_FOOD_FACTS_SEARCH = 'https://world.openfoodfacts.org/cgi/search.pl'
+const OPEN_FOOD_FACTS_TIMEOUT = 6000 // 6s; API has ~10 req/min for search
+
+// Cache for Open Food Facts results
+const openFoodFactsCache = new Map<string, { foodName: string; nutrition: Record<string, number> }>()
+
+// Fetch nutrition from Open Food Facts (English search, per 100g)
+async function getNutritionFromOpenFoodFacts(foodClass: string): Promise<{ foodName: string; nutrition: Record<string, number> } | null> {
+  const searchTerm = foodClass.replace(/_/g, ' ').trim()
+  const cacheKey = searchTerm.toLowerCase()
+  if (openFoodFactsCache.has(cacheKey)) {
+    return openFoodFactsCache.get(cacheKey)!
+  }
+  try {
+    const url = `${OPEN_FOOD_FACTS_SEARCH}?search_terms=${encodeURIComponent(searchTerm)}&search_simple=1&action=process&json=1&page_size=5`
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(OPEN_FOOD_FACTS_TIMEOUT),
+      headers: { 'User-Agent': 'SmartFood-App/1.0' }
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const products = data.products || []
+    for (const p of products) {
+      const nut = p.nutriments || {}
+      const kcal = nut['energy-kcal_100g'] ?? nut.energy_kcal_100g
+      const protein = nut.proteins_100g ?? nut.protein_100g
+      const carbs = nut.carbohydrates_100g ?? nut.carbohydrates_100g
+      const fat = nut.fat_100g
+      const fiber = nut.fiber_100g
+      if (kcal != null && Number(kcal) > 0 && Number(kcal) < 1000) {
+        const nutrition: Record<string, number> = {
+          calories: Math.round(Number(kcal)),
+          protein: Math.max(0, Math.round((protein != null ? Number(protein) : 0) * 10) / 10),
+          carbs: Math.max(0, Math.round((carbs != null ? Number(carbs) : 0) * 10) / 10),
+          fat: Math.max(0, Math.round((fat != null ? Number(fat) : 0) * 10) / 10)
+        }
+        if (fiber != null) nutrition.fiber = Math.max(0, Math.round(Number(fiber) * 10) / 10)
+        const foodName = p.product_name || searchTerm
+        const result = { foodName, nutrition }
+        openFoodFactsCache.set(cacheKey, result)
+        return result
+      }
+    }
+  } catch (e: any) {
+    if (e?.name !== 'AbortError') {
+      console.log('[Nutrition] Open Food Facts fallback failed:', e?.message)
+    }
+  }
+  return null
+}
+
+// Cache for nutrition estimates to avoid repeated API calls
+const nutritionCache = new Map<string, Record<string, number>>()
+
+// Get estimated nutrition values
+// PRIMARY: Llama 3.1 via Groq API (intelligent, handles any food type)
+// FALLBACK: Hardcoded category-based estimates (only if Groq API fails or unavailable)
+// This is used when Livsmedelsverket API fails
+async function getEstimatedNutrition(foodClass: string): Promise<Record<string, number>> {
+  const foodLower = foodClass.toLowerCase().trim()
+  
+  // Check cache first
+  if (nutritionCache.has(foodLower)) {
+    return nutritionCache.get(foodLower)!
+  }
+  
+  // PRIMARY: Try Llama 3.1 first (if API key available)
+  if (!GROQ_API_KEY) {
+    // FALLBACK: Use hardcoded category estimates only if Groq API key not configured
+    return getHardcodedNutrition(foodLower)
+  }
+  
+  try {
+    // Use Llama 3.1 to estimate nutrition values
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a nutrition expert. Estimate nutritional values for foods. Return only valid JSON with numeric values, no other text. Use this exact format: {"calories": 200, "protein": 10, "carbs": 25, "fat": 8, "fiber": 2}'
+          },
+          {
+            role: 'user',
+            content: `Estimate nutritional values per 100g for this food: "${foodClass}". Return JSON with calories, protein (g), carbs (g), fat (g), and fiber (g). Use realistic values based on typical food composition.`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 150
+      }),
+      signal: AbortSignal.timeout(5000) // 5 second timeout
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      const nutritionText = data.choices?.[0]?.message?.content?.trim() || ''
+      
+      // Try to parse JSON from response
+      try {
+        // Remove markdown code blocks if present
+        const cleaned = nutritionText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        const nutrition = JSON.parse(cleaned)
+        
+        // Validate structure
+        if (nutrition && typeof nutrition === 'object') {
+          const result = {
+            calories: typeof nutrition.calories === 'number' ? Math.round(nutrition.calories) : 200,
+            protein: typeof nutrition.protein === 'number' ? Math.round(nutrition.protein * 10) / 10 : 10,
+            carbs: typeof nutrition.carbs === 'number' ? Math.round(nutrition.carbs * 10) / 10 : 25,
+            fat: typeof nutrition.fat === 'number' ? Math.round(nutrition.fat * 10) / 10 : 8,
+            fiber: typeof nutrition.fiber === 'number' ? Math.round(nutrition.fiber * 10) / 10 : 2
+          }
+          
+          // Validate reasonable ranges
+          if (result.calories > 0 && result.calories < 1000 && 
+              result.protein >= 0 && result.carbs >= 0 && result.fat >= 0) {
+            nutritionCache.set(foodLower, result)
+            return result
+          }
+        }
+      } catch (parseError) {
+        // If JSON parsing fails, try to extract JSON from text
+        const jsonMatch = nutritionText.match(/\{.*?\}/)
+        if (jsonMatch) {
+          try {
+            const nutrition = JSON.parse(jsonMatch[0])
+            if (nutrition && typeof nutrition === 'object') {
+              const result = {
+                calories: typeof nutrition.calories === 'number' ? Math.round(nutrition.calories) : 200,
+                protein: typeof nutrition.protein === 'number' ? Math.round(nutrition.protein * 10) / 10 : 10,
+                carbs: typeof nutrition.carbs === 'number' ? Math.round(nutrition.carbs * 10) / 10 : 25,
+                fat: typeof nutrition.fat === 'number' ? Math.round(nutrition.fat * 10) / 10 : 8,
+                fiber: typeof nutrition.fiber === 'number' ? Math.round(nutrition.fiber * 10) / 10 : 2
+              }
+              
+              if (result.calories > 0 && result.calories < 1000 && 
+                  result.protein >= 0 && result.carbs >= 0 && result.fat >= 0) {
+                nutritionCache.set(foodLower, result)
+                return result
+              }
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (error: any) {
+    // FALLBACK: If Groq API fails, use hardcoded category-based estimates
+    console.log(`[Nutrition] Groq API failed for "${foodClass}", using hardcoded fallback:`, error.message)
+  }
+  
+  // FALLBACK: Use hardcoded category estimates if Llama 3.1 failed
+  return getHardcodedNutrition(foodLower)
+}
+
+// FALLBACK: Hardcoded category-based nutrition estimates (only used when Llama 3.1 fails or unavailable)
+function getHardcodedNutrition(foodLower: string): Record<string, number> {
   // Salad/vegetable foods
   if (foodLower.includes('salad') || foodLower.includes('vegetable') || 
       foodLower.includes('caesar') || foodLower.includes('greek')) {
@@ -232,7 +479,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    
+
     const sanitizedFoodClass = foodClass.trim().toLowerCase()
 
     // PRIMARY: Try to fetch from Livsmedelsverket API first (standard approach)
@@ -263,8 +510,8 @@ export async function POST(request: NextRequest) {
         console.log(`[Nutrition API] Received ${foods.length} foods from Livsmedelsverket (total: ${totalRecords})`)
         
         if (Array.isArray(foods) && foods.length > 0) {
-          // Translate English food class to Swedish for better matching
-          const swedishTerms = translateToSwedish(sanitizedFoodClass)
+          // Translate English food class to Swedish for better matching (using Llama 3.1)
+          const swedishTerms = await translateToSwedish(sanitizedFoodClass)
           const originalTerm = sanitizedFoodClass.replace(/_/g, ' ')
           
           console.log(`[Nutrition API] Translated "${originalTerm}" to Swedish: [${swedishTerms.join(', ')}]`)
@@ -377,8 +624,8 @@ export async function POST(request: NextRequest) {
                       if (matchingFood) break
                     }
                   }
-                  
-                  if (matchingFood) {
+        
+        if (matchingFood) {
                     console.log(`[Nutrition API] Found match on page ${page + 1} (offset ${offset})`)
                   }
                 }
@@ -393,8 +640,8 @@ export async function POST(request: NextRequest) {
           if (matchingFood && matchingFood.nummer) {
             console.log(`[Nutrition API] Found match: "${matchingFood.namn}" (nummer: ${matchingFood.nummer})`)
             
-            // Fetch nutrition values
-            const nutritionResponse = await fetch(
+          // Fetch nutrition values
+          const nutritionResponse = await fetch(
               `${LIVSMEDELSVERKET_API}/api/v1/livsmedel/${matchingFood.nummer}/naringsvarden`,
               { 
                 signal: AbortSignal.timeout(API_TIMEOUT),
@@ -403,15 +650,15 @@ export async function POST(request: NextRequest) {
                   'Accept': 'application/json'
                 }
               }
-            )
-            
-            if (nutritionResponse.ok) {
-              const nutritionData = await nutritionResponse.json()
+          )
+          
+          if (nutritionResponse.ok) {
+            const nutritionData = await nutritionResponse.json()
               console.log(`[Nutrition API] Received ${Array.isArray(nutritionData) ? nutritionData.length : 0} nutrition values`)
-              
+            
               if (Array.isArray(nutritionData) && nutritionData.length > 0) {
                 // Format nutrition data - API uses Swedish field names
-                const formattedNutrition: Record<string, number> = {}
+            const formattedNutrition: Record<string, number> = {}
                 nutritionData.forEach((item: any) => {
                   const namn = (item.namn || '').toLowerCase()
                   const varde = item.varde || 0
@@ -435,8 +682,8 @@ export async function POST(request: NextRequest) {
                 // Only return if we got at least calories
                 if (formattedNutrition.calories > 0) {
                   console.log(`[Nutrition API] Successfully retrieved nutrition from Livsmedelsverket:`, formattedNutrition)
-                  return NextResponse.json({
-                    source: 'Livsmedelsverket',
+            return NextResponse.json({
+              source: 'Livsmedelsverket',
                     foodName: matchingFood.namn || sanitizedFoodClass.replace(/_/g, ' '),
                     nutrition: formattedNutrition,
                     // Add deployment identifier for debugging
@@ -487,23 +734,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fallback to estimated values based on food type
-    // Note: LSTM predicts eating patterns (next meal), not nutrition for specific foods
-    // LLM provides recommendations, not specific nutrition values
-    // So we use estimated values based on food category
-    
-    const estimatedNutrition = getEstimatedNutrition(sanitizedFoodClass)
+    // Fallback 2: Open Food Facts (free, English, no API key) when Livsmedelsverket has no match
+    const openFoodFactsResult = await getNutritionFromOpenFoodFacts(sanitizedFoodClass)
+    if (openFoodFactsResult) {
+      console.log('[Nutrition API] Using Open Food Facts fallback for:', sanitizedFoodClass)
+      return NextResponse.json({
+        source: 'Open Food Facts',
+        foodName: openFoodFactsResult.foodName,
+        nutrition: openFoodFactsResult.nutrition,
+        _debug: {
+          deploymentTime: new Date().toISOString(),
+          fallbackReason: 'Livsmedelsverket had no match; used Open Food Facts (English)'
+        }
+      })
+    }
+
+    // Fallback 3: Estimated values (Llama 3.1 or hardcoded category)
+    const estimatedNutrition = await getEstimatedNutrition(sanitizedFoodClass)
 
     return NextResponse.json({
       source: 'Estimated',
       foodName: sanitizedFoodClass.replace(/_/g, ' '),
       nutrition: estimatedNutrition,
-      // Add deployment identifier for debugging
       _debug: {
         apiUrl: LIVSMEDELSVERKET_API,
         timeout: API_TIMEOUT,
         deploymentTime: new Date().toISOString(),
-        fallbackReason: 'Livsmedelsverket API unavailable or timeout'
+        fallbackReason: 'Livsmedelsverket and Open Food Facts had no match'
       }
     })
   } catch (error: any) {
