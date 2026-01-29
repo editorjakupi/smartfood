@@ -280,7 +280,7 @@ export async function predictWithLSTM(history: HistoryEntry[]): Promise<{
     }
     
     // Try LSTM model (TensorFlow.js first, then Python server, then simplified)
-    const lstmResult = await callLSTMModel(sortedHistory as HistoryEntry[])
+    const lstmResult = await callLSTMModel(history)
     if (lstmResult) {
       const predictedCategory = modelConfig.food_categories[lstmResult.category] || 'snack'
       return {
