@@ -1,6 +1,6 @@
 # SmartFood
 
-**Live:** [https://smartfood-ten.vercel.app/](https://smartfood-ten.vercel.app/)
+🌐**Live:** [https://smartfood-ten.vercel.app/](https://smartfood-ten.vercel.app/)
 
 Web app that identifies food from images, shows nutrition data (per 100 g), and provides eating-pattern predictions and dietary advice. Built with Next.js, TypeScript, and AI/ML (Google Cloud Vision, Livsmedelsverket, Groq/Llama 3.1, optional CNN/LSTM via TensorFlow.js).
 

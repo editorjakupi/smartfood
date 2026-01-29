@@ -153,9 +153,9 @@ export async function predictCNN(imageBase64: string): Promise<{
     // Make prediction
     const predictions = cnnModel.predict(imageTensor) as tf.Tensor
     
-    // Get top 5 predictions
-    const predictionsArray = await predictions.array()
-    const probs = predictionsArray[0] as number[]
+    // Get top 5 predictions (batch shape: [1, numClasses])
+    const predictionsArray = (await predictions.array()) as number[][]
+    const probs = predictionsArray[0]
     
     // Get top 5 indices
     const top5Indices = probs
