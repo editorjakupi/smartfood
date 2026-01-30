@@ -59,7 +59,7 @@ function getWeight(name: string, shape: number[]): tf.Tensor {
   return tf.tensor(Array.from(weights[name]), shape, 'float32')
 }
 
-// Simplified LSTM cell forward pass
+// Simplified LSTM cell forward pass (input is [1,9] at runtime)
 function lstmCell(
   input: tf.Tensor2D,
   prevH: tf.Tensor2D,
@@ -77,7 +77,9 @@ function lstmCell(
     let gates = tf.matMul(combined, kernelAll)
     gates = tf.add(gates, bias)
     
-    const gateSize = gates.shape[1] / 4
+    const dim1 = gates.shape[1]
+    if (dim1 == null) throw new Error('LSTM gates shape[1] missing')
+    const gateSize = dim1 / 4
     const i = tf.sigmoid(gates.slice([0, 0], [-1, gateSize]))
     const f = tf.sigmoid(gates.slice([0, gateSize], [-1, gateSize]))
     const cTilde = tf.tanh(gates.slice([0, 2 * gateSize], [-1, gateSize]))
@@ -115,6 +117,7 @@ export async function predictManualLSTM(inputSequence: number[][]): Promise<{ ca
       let fwC = tf.zeros([1, 128])
       for (let t = 0; t < 14; t++) {
         const inputT = input.slice([0, t, 0], [1, 1, 9]).reshape([1, 9])
+        // @ts-expect-error reshape returns Tensor<Rank>; at runtime shape is [1,9] (Tensor2D)
         const result = lstmCell(inputT, fwH, fwC, fwKernel1, fwRecurrent1, fwBias1)
         fwH = result.h
         fwC = result.c
@@ -125,6 +128,7 @@ export async function predictManualLSTM(inputSequence: number[][]): Promise<{ ca
       let bwC = tf.zeros([1, 128])
       for (let t = 13; t >= 0; t--) {
         const inputT = input.slice([0, t, 0], [1, 1, 9]).reshape([1, 9])
+        // @ts-expect-error reshape returns Tensor<Rank>; at runtime shape is [1,9] (Tensor2D)
         const result = lstmCell(inputT, bwH, bwC, bwKernel1, bwRecurrent1, bwBias1)
         bwH = result.h
         bwC = result.c
