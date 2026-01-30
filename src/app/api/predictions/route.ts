@@ -37,78 +37,97 @@ export async function GET(request: NextRequest) {
       })
     }
     
-    // Sort history by date (newest first, then reverse for LSTM)
-    const sortedHistory = [...history].sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    ).reverse()
+    // Sort history by date (oldest first for LSTM; keep for pattern analysis)
+    const sortedHistory = [...history].sort((a, b) =>
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    )
     
-    // Use LSTM model for prediction
+    // Use LSTM model for prediction (expects oldest-first)
     const lstmPrediction = await predictWithLSTM(sortedHistory as HistoryEntry[])
     
-    // Analyze patterns and provide insights
-    const recentMeals = sortedHistory.slice(0, 14).map(h => h.food_class)
-    const avgCalories = sortedHistory.slice(0, 7).reduce((sum, h) => sum + h.calories, 0) / Math.min(7, sortedHistory.length)
-    const totalCalories = sortedHistory.slice(0, 7).reduce((sum, h) => sum + h.calories, 0)
-    const avgProtein = sortedHistory.slice(0, 7).reduce((sum, h) => sum + (h.protein || 0), 0) / Math.min(7, sortedHistory.length)
-    const avgCarbs = sortedHistory.slice(0, 7).reduce((sum, h) => sum + (h.carbs || 0), 0) / Math.min(7, sortedHistory.length)
-    const avgFat = sortedHistory.slice(0, 7).reduce((sum, h) => sum + (h.fat || 0), 0) / Math.min(7, sortedHistory.length)
+    // Recent meals = last N in list (most recent in time)
+    const recentCount = Math.min(14, sortedHistory.length)
+    const recentMeals = sortedHistory.slice(-recentCount)
+    const recentFoodClasses = recentMeals.map(h => (h.food_class || '').trim().toLowerCase())
+    
+    // Generic labels to deprioritise when showing "most frequent food"
+    const genericLabels = new Set(['food', 'ingredient', 'other', 'unknown', ''])
+    
+    const foodCounts: Record<string, number> = {}
+    recentFoodClasses.forEach(fc => {
+      if (fc) {
+        foodCounts[fc] = (foodCounts[fc] || 0) + 1
+      }
+    })
+    
+    const uniqueFoods = Object.keys(foodCounts).length
+    const sortedByCount = Object.entries(foodCounts).sort(([, a], [, b]) => b - a)
+    const mostCommonEntry = sortedByCount.find(([name]) => !genericLabels.has(name)) ?? sortedByCount[0]
+    const mostCommonFood = mostCommonEntry?.[0]
+    const mostCommonFoodCount = mostCommonFood ? foodCounts[mostCommonFood] : 0
+    const displayFoodName = mostCommonFood
+      ? (genericLabels.has(mostCommonFood) ? 'other / unspecified' : mostCommonFood.replace(/_/g, ' '))
+      : ''
     
     const patterns: string[] = []
     const recommendations: string[] = []
     
-    // Detect common foods and variety
-    const foodCounts: Record<string, number> = {}
-    recentMeals.forEach(food => {
-      foodCounts[food] = (foodCounts[food] || 0) + 1
-    })
-    
-    const uniqueFoods = Object.keys(foodCounts).length
-    const mostCommonFood = Object.entries(foodCounts)
-      .sort(([, a], [, b]) => b - a)[0]?.[0]
-    const mostCommonFoodCount = mostCommonFood ? foodCounts[mostCommonFood] : 0
-    
-    // Food variety analysis
+    // Food variety analysis (based on recent meals)
     if (uniqueFoods < 5 && sortedHistory.length >= 10) {
-      patterns.push(`You have limited food variety (${uniqueFoods} different foods in last ${Math.min(14, sortedHistory.length)} meals)`)
+      patterns.push(`You have limited food variety (${uniqueFoods} different foods in last ${recentCount} meals)`)
       recommendations.push('Try adding more variety to your meals for better nutrition')
     } else if (uniqueFoods >= 10) {
       patterns.push(`Great food variety! You've eaten ${uniqueFoods} different foods recently`)
     }
     
-    if (mostCommonFood && mostCommonFoodCount >= 3) {
-      patterns.push(`Your most frequent food is ${mostCommonFood.replace(/_/g, ' ')} (${mostCommonFoodCount} times in recent meals)`)
+    if (displayFoodName && mostCommonFoodCount >= 2) {
+      patterns.push(`Your most frequent food in recent meals is ${displayFoodName} (${mostCommonFoodCount} times in last ${recentCount} meals)`)
     }
     
-    // Calorie analysis with more context
-    if (avgCalories > 2500) {
-      patterns.push(`Your average daily intake is ${Math.round(avgCalories)} kcal (above typical 2000 kcal)`)
+    // Average daily intake: group by calendar day, sum calories per day, then average
+    const caloriesByDay: Record<string, number> = {}
+    sortedHistory.forEach(h => {
+      const day = new Date(h.date).toISOString().slice(0, 10)
+      caloriesByDay[day] = (caloriesByDay[day] || 0) + (h.calories || 0)
+    })
+    const dailyTotals = Object.values(caloriesByDay)
+    const avgDailyKcal = dailyTotals.length > 0
+      ? dailyTotals.reduce((a, b) => a + b, 0) / dailyTotals.length
+      : recentMeals.reduce((sum, h) => sum + (h.calories || 0), 0) / Math.max(1, recentMeals.length)
+    
+    if (avgDailyKcal > 2500) {
+      patterns.push(`Your average daily intake is ${Math.round(avgDailyKcal)} kcal (above typical 2000 kcal)`)
       recommendations.push('Consider adding more vegetables and reducing portion sizes to balance your calorie intake')
       recommendations.push('Try incorporating more fiber-rich foods to feel fuller with fewer calories')
-    } else if (avgCalories < 1500) {
-      patterns.push(`Your average daily intake is ${Math.round(avgCalories)} kcal (below typical 2000 kcal)`)
+    } else if (avgDailyKcal < 1500) {
+      patterns.push(`Your average daily intake is ${Math.round(avgDailyKcal)} kcal (below typical 2000 kcal)`)
       recommendations.push('Consider adding nutrient-dense foods like nuts, avocados, and whole grains to meet your daily needs')
     } else {
-      patterns.push(`Your average daily intake is ${Math.round(avgCalories)} kcal (within healthy range)`)
+      patterns.push(`Your average daily intake is ${Math.round(avgDailyKcal)} kcal (within healthy range)`)
     }
     
-    // Macronutrient balance
-    const proteinPercent = (avgProtein * 4) / totalCalories * 100
-    const carbsPercent = (avgCarbs * 4) / totalCalories * 100
-    const fatPercent = (avgFat * 9) / totalCalories * 100
+    // Macronutrient % from recent meals only
+    const recentTotalCal = recentMeals.reduce((s, h) => s + (h.calories || 0), 0)
+    const recentProtein = recentMeals.reduce((s, h) => s + (h.protein || 0), 0)
+    const recentCarbs = recentMeals.reduce((s, h) => s + (h.carbs || 0), 0)
+    const recentFat = recentMeals.reduce((s, h) => s + (h.fat || 0), 0)
+    const proteinPercent = recentTotalCal > 0 ? ((recentProtein * 4) / recentTotalCal) * 100 : 0
+    const carbsPercent = recentTotalCal > 0 ? ((recentCarbs * 4) / recentTotalCal) * 100 : 0
+    const fatPercent = recentTotalCal > 0 ? ((recentFat * 9) / recentTotalCal) * 100 : 0
     
-    if (proteinPercent < 10) {
+    if (proteinPercent < 10 && recentCount >= 5) {
       recommendations.push('Increase protein intake for better muscle maintenance and satiety')
     } else if (proteinPercent > 35) {
       recommendations.push('Consider balancing your macros - very high protein may limit other nutrients')
     }
     
-    if (carbsPercent < 30 && sortedHistory.length >= 7) {
-      patterns.push(`Your diet is relatively low in carbohydrates (${Math.round(carbsPercent)}% of calories)`)
+    if (carbsPercent < 30 && recentCount >= 5 && recentTotalCal > 0) {
+      patterns.push(`In recent meals, carbohydrates are relatively low (${Math.round(carbsPercent)}% of calories)`)
     }
     
-    // Meal timing patterns
-    const mealTimes = sortedHistory.slice(0, 10).map(h => new Date(h.date).getHours())
-    const avgMealTime = mealTimes.reduce((sum, h) => sum + h, 0) / mealTimes.length
+    // Meal timing from recent meals
+    const mealTimes = recentMeals.slice(-10).map(h => new Date(h.date).getHours())
+    const avgMealTime = mealTimes.length > 0 ? mealTimes.reduce((sum, h) => sum + h, 0) / mealTimes.length : 12
     if (avgMealTime > 20 || avgMealTime < 6) {
       patterns.push('You tend to eat meals late in the evening or early morning')
       recommendations.push('Consider eating larger meals earlier in the day for better metabolism')
@@ -162,20 +181,26 @@ export async function GET(request: NextRequest) {
       
       predictions.push({
         type: 'daily_calories',
-        prediction: `Expected daily intake: ${Math.round(avgCalories)} kcal`,
+        prediction: `Expected daily intake: ${Math.round(avgDailyKcal)} kcal`,
         confidence: 0.70,
-        basedOn: 'Last 7 meals average'
+        basedOn: 'Average from your logged days'
       })
     }
     
+    const lstmModelUsed = lstmPrediction.success
+    const noteSimplified = sortedHistory.length < 14
+      ? 'Need at least 14 meals in history for LSTM predictions; using simplified estimates until then.'
+      : 'Using simplified predictions. Ensure data/models/lstm/tfjs/model.json and config files exist (see README).'
+
     return NextResponse.json({
       predictions: predictions,
       patterns: patterns,
       recommendations: recommendations,
-      modelUsed: lstmPrediction.success ? 'LSTM (Bidirectional LSTM with Attention)' : 'Simplified (fallback)',
-      note: lstmPrediction.success 
-        ? 'Predictions generated using trained LSTM model with 88.3% category accuracy'
-        : 'Using simplified predictions. To use full LSTM model, ensure the model file (eating_pattern_model.h5) is available in data/models/lstm/'
+      modelUsed: lstmModelUsed ? 'LSTM (Bidirectional LSTM with Attention)' : 'Simplified (fallback)',
+      lstmModelUsed,
+      note: lstmModelUsed
+        ? 'Predictions from trained LSTM model (TensorFlow.js).'
+        : noteSimplified
     })
   } catch (error: any) {
     console.error('Predictions error:', error)

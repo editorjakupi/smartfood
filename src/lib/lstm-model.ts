@@ -1,5 +1,5 @@
 // LSTM Model Integration
-// Uses Python microservice for predictions (simpler than TensorFlow.js on Node 24)
+// Uses TensorFlow.js for predictions (no Python servers)
 
 import * as fs from 'fs'
 import * as path from 'path'
@@ -74,24 +74,47 @@ const getDefaultCategory = (hour: number): number => {
   return 3 // snack
 }
 
+const LSTM_MODEL_REL = path.join('data', 'models', 'lstm')
+const SMARTFOOD_LSTM_REL = path.join('studymodules', 'NBI Handlesakademin', 'AI - teori och tillämpning', 'del2', 'Kunskapkskontroll', 'del2', 'smartfood', 'data', 'models', 'lstm')
+
+// Find LSTM model dir (walk up from cwd; also try nested smartfood when run from workspace root)
+function findLSTMModelDir(): string | null {
+  let base = process.cwd()
+
+  const tryBase = (b: string): string | null => {
+    const modelDir = path.join(b, LSTM_MODEL_REL)
+    if (fs.existsSync(path.join(modelDir, 'scaler_params.json')) && fs.existsSync(path.join(modelDir, 'model_config.json'))) {
+      return modelDir
+    }
+    const nested = path.join(b, SMARTFOOD_LSTM_REL)
+    if (fs.existsSync(path.join(nested, 'scaler_params.json')) && fs.existsSync(path.join(nested, 'model_config.json'))) {
+      return nested
+    }
+    return null
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const found = tryBase(base)
+    if (found) return found
+    const parent = path.dirname(base)
+    if (parent === base) break
+    base = parent
+  }
+  return null
+}
+
 // Load config files
 export async function loadLSTMModel(): Promise<boolean> {
   try {
-    const modelDir = path.join(process.cwd(), 'data', 'models', 'lstm')
-    
-    const scalerPath = path.join(modelDir, 'scaler_params.json')
-    const configPath = path.join(modelDir, 'model_config.json')
-    const modelPath = path.join(modelDir, 'eating_pattern_model.h5')
-    
-    if (!fs.existsSync(modelPath)) {
-      console.log('LSTM model file (.h5) not found. Using simplified predictions.')
-      return false
-    }
-    
-    if (!fs.existsSync(scalerPath) || !fs.existsSync(configPath)) {
+    const modelDir = findLSTMModelDir()
+    if (!modelDir) {
       console.log('LSTM config files not found. Using simplified predictions.')
       return false
     }
+
+    const scalerPath = path.join(modelDir, 'scaler_params.json')
+    const configPath = path.join(modelDir, 'model_config.json')
+    const tfjsModelPath = path.join(modelDir, 'tfjs', 'model.json')
     
     // Load scaler params
     const scalerData = fs.readFileSync(scalerPath, 'utf-8')
@@ -102,7 +125,11 @@ export async function loadLSTMModel(): Promise<boolean> {
     modelConfig = JSON.parse(configData) as ModelConfig
     
     modelAvailable = true
-    console.log('✓ LSTM model config loaded (Python microservice mode)')
+    if (fs.existsSync(tfjsModelPath)) {
+      console.log('✓ LSTM model config loaded (TensorFlow.js)')
+    } else {
+      console.log('✓ LSTM model config loaded (TF.js model not found; will use simplified predictions)')
+    }
     console.log(`  Model accuracy: ${(modelConfig.category_accuracy * 100).toFixed(1)}%`)
     console.log(`  Calories MAE: ${modelConfig.calories_mae.toFixed(1)} kcal`)
     
@@ -113,75 +140,20 @@ export async function loadLSTMModel(): Promise<boolean> {
   }
 }
 
-// Try TensorFlow.js LSTM model first (works in both local and deployment)
-// Falls back to Python server (local only), then simplified predictions
+// Use TensorFlow.js LSTM model (no Python servers)
 async function callLSTMModel(history: HistoryEntry[]): Promise<{
   calories: number
   category: number
   categoryConfidence: number
 } | null> {
-  // PRIMARY: Try TensorFlow.js implementation (works everywhere)
   try {
     const { predictLSTM } = await import('./lstm-tfjs')
     const result = await predictLSTM(history)
-    
-    if (result) {
-      return result
-    }
+    return result ?? null
   } catch (tfjsError: any) {
-    console.log('TensorFlow.js LSTM not available, trying Python server:', tfjsError.message)
+    console.log('TensorFlow.js LSTM not available:', tfjsError.message)
+    return null
   }
-  
-  // FALLBACK: Try Python server (local development only)
-  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY)
-  
-  if (!isServerless) {
-    try {
-      // Dynamically import server manager
-      const lstmServer = await import('./lstm-server')
-      const { getServerUrl, isServerReady, startLSTMServer } = lstmServer
-      
-      // Ensure server is running
-      if (!isServerReady()) {
-        const started = await startLSTMServer()
-        if (!started) {
-          return null
-        }
-      }
-      
-      // Prepare sequence for Python service
-      const sequence = prepareSequence(history)
-      if (!sequence) {
-        return null
-      }
-      
-      const serverUrl = lstmServer.getServerUrl()
-      
-      const response = await fetch(`${serverUrl}/predict`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sequence }),
-        signal: AbortSignal.timeout(5000)
-      })
-      
-      if (response.ok) {
-        const result = await response.json()
-        if (result.error) {
-          throw new Error(result.error)
-        }
-        return {
-          calories: result.calories,
-          category: result.category,
-          categoryConfidence: result.categoryConfidence
-        }
-      }
-    } catch (pythonError: any) {
-      // Python server not available, continue to simplified predictions
-      console.log('Python LSTM server not available:', pythonError.message)
-    }
-  }
-  
-  return null
 }
 
 // Normalize features using scaler params
@@ -257,7 +229,7 @@ function prepareSequence(history: HistoryEntry[]): number[][] | null {
   return sequence
 }
 
-// Make prediction using LSTM model (via Python service or simplified)
+// Make prediction using LSTM model (TensorFlow.js or simplified fallback)
 export async function predictWithLSTM(history: HistoryEntry[]): Promise<{
   predictedCalories: number
   predictedCategory: string
@@ -279,7 +251,7 @@ export async function predictWithLSTM(history: HistoryEntry[]): Promise<{
       return predictSimplified(history)
     }
     
-    // Try LSTM model (TensorFlow.js first, then Python server, then simplified)
+    // Try LSTM model (TensorFlow.js), then simplified fallback
     const lstmResult = await callLSTMModel(history)
     if (lstmResult) {
       const predictedCategory = modelConfig.food_categories[lstmResult.category] || 'snack'
@@ -363,32 +335,10 @@ function predictSimplified(history: HistoryEntry[]): {
   }
 }
 
-// Initialize config and try to load TensorFlow.js model on module load
+// Initialize config (but NOT TensorFlow.js model) on module load
+// TF.js model is loaded lazily on first prediction to avoid blocking Next.js startup
 if (typeof window === 'undefined') {
-  // Load config
-  loadLSTMModel().then(() => {
-    // Try to load TensorFlow.js model (works in both local and deployment)
-    import('./lstm-tfjs').then(({ loadLSTMModelTFJS }) => {
-      loadLSTMModelTFJS().catch((err: any) => {
-        console.log('TensorFlow.js LSTM model will use fallback:', err.message)
-        console.log('Run: python convert_lstm_to_tfjs_simple.py to convert LSTM (see README)')
-      })
-    }).catch(() => {
-      // TensorFlow.js module not available
-    })
-    
-    // In local development, also try to start Python server as fallback
-    const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NETLIFY)
-    if (!isServerless) {
-      import('./lstm-server').then(({ startLSTMServer }) => {
-        startLSTMServer().catch((err: any) => {
-          console.log('Python LSTM server will use fallback mode:', err.message)
-        })
-      }).catch(() => {
-        // Server module not available
-      })
-    }
-  }).catch(err => {
+  loadLSTMModel().catch(err => {
     console.log('LSTM config will use simplified predictions:', err.message)
   })
 }

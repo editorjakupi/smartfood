@@ -264,7 +264,7 @@ export async function POST(request: NextRequest) {
       } catch (cnnError: any) {
         // CNN model not available or error
         console.log('CNN model (TensorFlow.js) not available:', cnnError.message)
-        console.log('Note: LSTM: python convert_lstm_to_tfjs_simple.py; CNN: convert in notebook (see README)')
+        console.log('Note: Convert CNN/LSTM to TensorFlow.js in notebooks (see README).')
       }
     }
 
@@ -272,7 +272,7 @@ export async function POST(request: NextRequest) {
     if (!foodClass) {
       const errorMessage = !process.env.GOOGLE_CLOUD_VISION_API_KEY
         ? 'Google Cloud Vision API key not configured. Please set GOOGLE_CLOUD_VISION_API_KEY in your .env.local file.\n\nGet your API key at: https://console.cloud.google.com/apis/credentials'
-        : 'Both Google Cloud Vision API and local CNN model failed. Please check:\n1. Google Cloud Vision API key is valid\n2. Local CNN model exists at: data/models/cnn/food_classifier_best.keras\n3. Python dependencies are installed: pip install flask flask-cors tensorflow pillow numpy'
+        : 'Both Google Cloud Vision API and local CNN model failed. Please check:\n1. Google Cloud Vision API key is valid\n2. CNN TensorFlow.js model exists at: data/models/cnn/tfjs/model.json (convert in notebook, see README)'
       
       return NextResponse.json(
         { error: errorMessage },

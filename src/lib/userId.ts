@@ -289,6 +289,28 @@ export function clearProfile(): void {
 }
 
 /**
+ * Remove a profile from this device (from the list of profiles).
+ * If the removed profile is the current one, also logs out (clearProfile).
+ * History in database is not affected; user can log in again with Profile ID.
+ */
+export function removeProfileFromDevice(profileIdToRemove: string): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const currentId = getProfileId()
+  const profiles = getUserProfiles().filter((p) => p.id !== profileIdToRemove)
+  const mapping = getProfileMapping()
+  delete mapping[profileIdToRemove]
+  localStorage.setItem(USER_PROFILES_KEY, JSON.stringify(profiles))
+  localStorage.setItem(USER_PROFILE_MAPPING_KEY, JSON.stringify(mapping))
+
+  if (currentId === profileIdToRemove) {
+    clearProfile()
+  }
+}
+
+/**
  * Clear custom user ID (backward compatibility)
  * @deprecated Use clearProfile() instead
  */

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { DEFAULT_ESTIMATED_PORTION_GRAMS } from '@/lib/portion'
 
 // Configuration - Groq API only (both local and deployment)
 const GROQ_API_KEY = process.env.GROQ_API_KEY || ''
@@ -99,17 +100,15 @@ export async function POST(request: NextRequest) {
     
     if (nutrition && typeof nutrition === 'object') {
       const nutritionSource = (nutrition as any).source || 'Estimated'
-      context += `Latest meal nutrition (source: ${nutritionSource}):\n`
+      context += `Latest meal nutrition (estimated serving of ${DEFAULT_ESTIMATED_PORTION_GRAMS} g; source: ${nutritionSource}):\n`
       context += `- Calories: ${nutrition.calories || 0} kcal\n`
       context += `- Protein: ${nutrition.protein || 0}g\n`
       context += `- Carbohydrates: ${nutrition.carbs || 0}g\n`
       context += `- Fat: ${nutrition.fat || 0}g\n`
-      if (nutrition.fiber) {
-        context += `- Fiber: ${nutrition.fiber || 0}g\n`
+      if (nutrition.fiber != null) {
+        context += `- Fiber: ${nutrition.fiber}g\n`
       }
-      if (nutritionSource === 'Livsmedelsverket') {
-        context += '\nNote: Nutrition data is from Livsmedelsverket (Swedish Food Agency), which provides official and accurate nutritional information for Swedish foods.\n'
-      }
+      context += `\nImportant: These numbers are the user's estimated meal intake for a typical serving (${DEFAULT_ESTIMATED_PORTION_GRAMS} g), not per 100 g. When giving recommendations, refer to these values as "this meal" or "your latest meal" (e.g. "${nutrition.calories || 0} kcal", "${nutrition.protein || 0}g protein"). Do not suggest they ate only 100 g or treat the values as per-100g.\n`
     }
     
     if (history && Array.isArray(history) && history.length > 0) {

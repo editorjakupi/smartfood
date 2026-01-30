@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { getUserId } from '@/lib/userId'
+import { scaleNutritionPer100ToPortion, DEFAULT_ESTIMATED_PORTION_GRAMS } from '@/lib/portion'
 
 interface NutritionDisplayProps {
   foodClass: string
@@ -21,12 +22,18 @@ export default function NutritionDisplay({
   const [recError, setRecError] = useState<string | null>(null)
   const lastSavedRef = useRef<{ key: string; timestamp: number } | null>(null)
 
+  // Nutrition from API is per 100g; scale to estimated serving for history and recommendations
+  const scaledNutrition = useMemo(() => {
+    if (!nutrition) return null
+    return scaleNutritionPer100ToPortion(nutrition, DEFAULT_ESTIMATED_PORTION_GRAMS)
+  }, [nutrition])
+
   useEffect(() => {
     const fetchRecommendations = async () => {
+      if (!scaledNutrition) return
       setLoadingRecs(true)
       setRecError(null)
       try {
-        // Get history from database
         const userId = localStorage.getItem('smartfood_user_id')
         if (!userId) {
           setRecommendations('No history available. Start classifying food to get recommendations.')
@@ -48,7 +55,7 @@ export default function NutritionDisplay({
         const response = await fetch('/api/recommendations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nutrition, history })
+          body: JSON.stringify({ nutrition: scaledNutrition, history })
         })
 
         if (!response.ok) {
@@ -66,7 +73,7 @@ export default function NutritionDisplay({
       }
     }
 
-    if (nutrition && foodClass && foodClass !== 'error') {
+    if (nutrition && scaledNutrition && foodClass && foodClass !== 'error') {
       // Create a unique key for this classification result (based on data, not time)
       const entryKey = `${foodClass}_${nutrition.calories}_${nutrition.protein}_${nutrition.carbs}_${nutrition.fat}`
       const now = Date.now()
@@ -94,11 +101,11 @@ export default function NutritionDisplay({
           body: JSON.stringify({
             date: new Date().toISOString(),
             foodClass,
-            calories: nutrition.calories || 0,
-            protein: nutrition.protein || 0,
-            carbs: nutrition.carbs || 0,
-            fat: nutrition.fat || 0,
-            fiber: nutrition.fiber || 0,
+            calories: scaledNutrition.calories,
+            protein: scaledNutrition.protein,
+            carbs: scaledNutrition.carbs,
+            fat: scaledNutrition.fat,
+            fiber: scaledNutrition.fiber,
             confidence: confidence || 0
           })
         }).catch(err => {
@@ -111,7 +118,7 @@ export default function NutritionDisplay({
         fetchRecommendations()
       }
     }
-  }, [foodClass, nutrition, confidence])
+  }, [foodClass, nutrition, scaledNutrition, confidence])
 
   const formatFoodName = (name: string) => {
     if (name === 'error') return 'Error'
@@ -139,40 +146,44 @@ export default function NutritionDisplay({
           </span>
         </div>
 
-        <p className="text-xs text-gray-500 mb-3">
-          Estimate per 100 g — the app does not measure portion size from the image, only the food type.
+        <p className="text-xs text-gray-500 mb-2">
+          The app does not measure portion size from the image, only the food type. Values below are per 100 g and for an estimated serving ({DEFAULT_ESTIMATED_PORTION_GRAMS} g).
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-gray-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-gray-900">
-              {nutrition.calories || 0}
+              {scaledNutrition.calories}
             </div>
             <div className="text-sm text-gray-500">kcal</div>
+            <div className="text-xs text-gray-400 mt-0.5">({nutrition.calories || 0} per 100 g)</div>
           </div>
           <div className="bg-blue-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-blue-600">
-              {nutrition.protein || 0}g
+              {scaledNutrition.protein}g
             </div>
             <div className="text-sm text-gray-500">Protein</div>
+            <div className="text-xs text-gray-400 mt-0.5">({nutrition.protein || 0}g per 100 g)</div>
           </div>
           <div className="bg-amber-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-amber-600">
-              {nutrition.carbs || 0}g
+              {scaledNutrition.carbs}g
             </div>
             <div className="text-sm text-gray-500">Carbs</div>
+            <div className="text-xs text-gray-400 mt-0.5">({nutrition.carbs || 0}g per 100 g)</div>
           </div>
           <div className="bg-red-50 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-red-600">
-              {nutrition.fat || 0}g
+              {scaledNutrition.fat}g
             </div>
             <div className="text-sm text-gray-500">Fat</div>
+            <div className="text-xs text-gray-400 mt-0.5">({nutrition.fat || 0}g per 100 g)</div>
           </div>
         </div>
 
-        {nutrition.fiber !== undefined && (
+        {(nutrition.fiber !== undefined || scaledNutrition.fiber > 0) && (
           <div className="mt-4 flex items-center text-sm text-gray-600">
             <span className="font-medium">Fiber:</span>
-            <span className="ml-2">{nutrition.fiber}g</span>
+            <span className="ml-2">{scaledNutrition.fiber}g ({(nutrition.fiber ?? 0)}g per 100 g)</span>
           </div>
         )}
 

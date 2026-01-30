@@ -16,6 +16,7 @@ interface PredictionsResponse {
   patterns: string[]
   recommendations: string[]
   modelUsed: string
+  lstmModelUsed?: boolean
   note: string
   message?: string
 }
@@ -93,7 +94,7 @@ export default function PredictionsPage() {
     }
   }
 
-  const isLSTMUsed = data?.modelUsed?.includes('LSTM') || false
+  const isLSTMUsed = data?.lstmModelUsed === true || data?.modelUsed?.includes('LSTM') || false
   const needsMoreData = historyCount < 14
 
   return (
@@ -155,9 +156,18 @@ export default function PredictionsPage() {
                   ? `⚠ Using Simplified Predictions (Need ${14 - historyCount} more meals for full LSTM)`
                   : '⚠ Using Simplified Predictions (LSTM model file not found)'}
             </p>
-            <p className="text-sm text-gray-700 mb-3">
+            <p className="text-sm text-gray-700 mb-2">
               {data?.note || 'Loading model status...'}
             </p>
+            {data?.predictions && data.predictions.length > 0 && (
+              <p className="text-sm font-medium mb-3">
+                {data.lstmModelUsed ? (
+                  <span className="text-green-700">✓ LSTM model (TensorFlow.js) used for predictions</span>
+                ) : (
+                  <span className="text-amber-700">Using simplified estimates (see note above)</span>
+                )}
+              </p>
+            )}
             <div className="text-sm text-gray-600 space-y-1">
               <p><strong>Current meals in history:</strong> {historyCount}</p>
               <p><strong>Required for full LSTM:</strong> 14 meals</p>

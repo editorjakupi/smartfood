@@ -8,16 +8,14 @@ import {
   getProfileId,
   createProfile,
   loginWithProfileId,
-  getUserProfiles,
-  switchToProfile,
-  clearProfile
+  clearProfile,
+  removeProfileFromDevice
 } from '@/lib/userId'
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userName, setUserNameState] = useState<string | null>(null)
   const [profileId, setProfileIdState] = useState<string | null>(null)
-  const [profiles, setProfiles] = useState<Array<{ id: string; name: string; lastUsed: string }>>([])
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [showNameInput, setShowNameInput] = useState(false)
   const [showCreateProfile, setShowCreateProfile] = useState(false)
@@ -25,12 +23,12 @@ export default function Navigation() {
   const [nameInput, setNameInput] = useState('')
   const [profileIdInput, setProfileIdInput] = useState('')
   const [copiedProfileId, setCopiedProfileId] = useState(false)
+  const [newlyCreatedProfileId, setNewlyCreatedProfileId] = useState<string | null>(null)
 
   useEffect(() => {
     const userInfo = getUserInfo()
     setUserNameState(userInfo.userName)
     setProfileIdState(userInfo.profileId)
-    setProfiles(userInfo.profiles)
   }, [])
 
   // Refresh user info when menu opens
@@ -39,7 +37,6 @@ export default function Navigation() {
       const userInfo = getUserInfo()
       setUserNameState(userInfo.userName)
       setProfileIdState(userInfo.profileId)
-      setProfiles(userInfo.profiles)
     }
   }, [showUserMenu])
 
@@ -75,42 +72,57 @@ export default function Navigation() {
     }
   }
 
-  const handleCreateProfile = () => {
-    if (nameInput.trim()) {
-      try {
-        const newProfileId = createProfile(nameInput.trim())
-        setUserNameState(nameInput.trim())
-        setProfileIdState(newProfileId)
-        setNameInput('')
+  const handleCreateProfile = async () => {
+    if (!nameInput.trim()) return
+    try {
+      const newProfileId = createProfile(nameInput.trim())
+      setUserNameState(nameInput.trim())
+      setProfileIdState(newProfileId)
+      setNameInput('')
+      setShowUserMenu(false)
+      // Register profile in DB so login from another device works
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: newProfileId })
+      }).catch(() => {})
+      // On mobile: show new Profile ID before closing; on desktop: reload
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setNewlyCreatedProfileId(newProfileId)
+      } else {
         setShowCreateProfile(false)
-        setShowUserMenu(false)
-        // Reload to apply new profile
         window.location.reload()
-      } catch (error: any) {
-        alert(error.message || 'Failed to create profile')
       }
+    } catch (error: any) {
+      alert(error.message || 'Failed to create profile')
     }
   }
 
-  const handleLoginProfile = () => {
-    if (profileIdInput.trim()) {
-      try {
-        const success = loginWithProfileId(profileIdInput.trim())
-        if (success) {
-          const userInfo = getUserInfo()
-          setUserNameState(userInfo.userName)
-          setProfileIdState(userInfo.profileId)
-          setProfileIdInput('')
-          setShowLoginProfile(false)
-          setShowUserMenu(false)
-          // Reload to apply new profile
-          window.location.reload()
-        } else {
-          alert('Profile ID not found. Make sure you copied it correctly.')
-        }
-      } catch (error: any) {
-        alert(error.message || 'Failed to login with Profile ID')
+  const handleLoginProfile = async () => {
+    const id = profileIdInput.trim()
+    if (!id) return
+    try {
+      const res = await fetch(`/api/profile?userId=${encodeURIComponent(id)}`)
+      if (!res.ok) throw new Error('Check failed')
+      const { exists } = await res.json()
+      if (!exists) {
+        alert('This profile was permanently deleted and cannot be used.')
+        return
       }
+      const success = loginWithProfileId(id)
+      if (success) {
+        const userInfo = getUserInfo()
+        setUserNameState(userInfo.userName)
+        setProfileIdState(userInfo.profileId)
+        setProfileIdInput('')
+        setShowLoginProfile(false)
+        setShowUserMenu(false)
+        window.location.reload()
+      } else {
+        alert('Invalid Profile ID. Make sure you copied it correctly.')
+      }
+    } catch (error: any) {
+      alert(error.message || 'Failed to login. Please try again.')
     }
   }
 
@@ -123,10 +135,21 @@ export default function Navigation() {
     }
   }
 
-  const handleSwitchProfile = () => {
-    // Switch profile requires entering Profile ID (same as login)
-    setShowLoginProfile(true)
-    setShowUserMenu(true)
+  const handleDeleteProfile = async () => {
+    if (!profileId) return
+    if (!confirm('Permanently delete this profile and all its history? This cannot be undone.')) return
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: profileId })
+      })
+      if (!res.ok) throw new Error('Delete failed')
+      removeProfileFromDevice(profileId)
+      window.location.reload()
+    } catch (e) {
+      alert('Failed to delete profile. Please try again.')
+    }
   }
 
   return (
@@ -208,7 +231,7 @@ export default function Navigation() {
                   ) : showLoginProfile ? (
                     <div className="p-3">
                       <p className="text-xs text-gray-600 mb-2">
-                        Enter your Profile ID to login or switch to another profile.
+                        Enter your Profile ID to log in. To use another profile, log out first, then log in with that profile's ID.
                       </p>
                       <p className="text-xs text-gray-500 mb-3">
                         Your Profile ID is shown in your profile menu. Save it to access your profile from any device.
@@ -227,7 +250,7 @@ export default function Navigation() {
                           onClick={handleLoginProfile}
                           className="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
                         >
-                          Login / Switch
+                          Login
                         </button>
                         <button
                           onClick={() => {
@@ -272,8 +295,8 @@ export default function Navigation() {
                   ) : (
                     <>
                       <div className="px-4 py-2 border-b border-gray-200">
-                        <p className="text-xs text-gray-500">Current Profile</p>
-                        <p className="text-sm font-medium text-gray-900">{userName || 'Anonymous'}</p>
+                        <p className="text-xs text-gray-500">Current profile</p>
+                        <p className="text-sm font-medium text-gray-900">{profileId ? (userName || 'User') : 'Not logged in'}</p>
                         {profileId ? (
                           <div className="mt-2">
                             <p className="text-xs text-gray-500 mb-1">Profile ID:</p>
@@ -286,7 +309,7 @@ export default function Navigation() {
                                 className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded"
                                 title="Copy Profile ID"
                               >
-                                {copiedProfileId ? '✓' : '📋'}
+                                {copiedProfileId ? 'Copied' : 'Copy'}
                               </button>
                             </div>
                             <p className="text-xs text-gray-400 mt-1">
@@ -298,37 +321,6 @@ export default function Navigation() {
                         )}
                       </div>
                       
-                      {/* Switch Profile Section */}
-                      {profiles.length > 0 && (
-                        <div className="px-4 py-2 border-b border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2">Switch Profile</p>
-                          <p className="text-xs text-gray-400 mb-2">
-                            Enter your Profile ID to switch to another profile
-                          </p>
-                          <div className="space-y-1 max-h-32 overflow-y-auto mb-2">
-                            {profiles.map((profile) => (
-                              <div
-                                key={profile.id}
-                                className={`w-full text-left px-2 py-1.5 text-xs rounded ${
-                                  profile.id === profileId ? 'bg-primary-50 text-primary-700' : 'text-gray-700'
-                                }`}
-                              >
-                                <div className="font-medium">{profile.name}</div>
-                                {profile.id === profileId && (
-                                  <div className="text-xs text-gray-500 mt-1">Current profile</div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                          <button
-                            onClick={handleSwitchProfile}
-                            className="w-full px-2 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 rounded text-gray-700"
-                          >
-                            Enter Profile ID to Switch
-                          </button>
-                        </div>
-                      )}
-                      
                       <button
                         onClick={() => {
                           setShowCreateProfile(true)
@@ -338,15 +330,17 @@ export default function Navigation() {
                       >
                         Create New Profile
                       </button>
-                      <button
-                        onClick={() => {
-                          setShowLoginProfile(true)
-                          setProfileIdInput('')
-                        }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200"
-                      >
-                        Login / Switch Profile
-                      </button>
+                      {!profileId && (
+                        <button
+                          onClick={() => {
+                            setShowLoginProfile(true)
+                            setProfileIdInput('')
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200"
+                        >
+                          Login
+                        </button>
+                      )}
                       {profileId && (
                         <button
                           onClick={() => {
@@ -361,14 +355,22 @@ export default function Navigation() {
                       {profileId && (
                         <button
                           onClick={() => {
-                            if (confirm('Clear profile and switch to anonymous? Your history will remain but you\'ll need to login with your Profile ID again to access it.')) {
+                            if (confirm('Log out? You can log in again with your Profile ID to access this profile.')) {
                               clearProfile()
                               window.location.reload()
                             }
                           }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-200"
+                        >
+                          Log out
+                        </button>
+                      )}
+                      {profileId && (
+                        <button
+                          onClick={handleDeleteProfile}
                           className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                         >
-                          Clear Profile
+                          Delete profile
                         </button>
                       )}
                     </>
@@ -415,29 +417,55 @@ export default function Navigation() {
                 Predictions
               </a>
               <div className="border-t border-gray-200 mt-2 pt-2">
-                <div className="px-4 py-2 text-xs text-gray-500">
-                  User: {userName || 'Anonymous'}
+                <div className="px-4 py-2">
+                  <p className="text-xs text-gray-500">Current profile</p>
+                  <p className="text-sm font-medium text-gray-900">{profileId ? (userName || 'User') : 'Not logged in'}</p>
+                  {profileId ? (
+                    <div className="mt-2">
+                      <p className="text-xs text-gray-500 mb-1">Profile ID (save to log in on another device)</p>
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono bg-gray-100 px-2 py-1.5 rounded flex-1 break-all">
+                          {profileId}
+                        </code>
+                        <button
+                          onClick={() => {
+                            handleCopyProfileId()
+                            setMobileMenuOpen(false)
+                          }}
+                          className="shrink-0 px-2 py-1.5 text-xs bg-gray-200 hover:bg-gray-300 rounded min-h-[44px] flex items-center justify-center"
+                          title="Copy Profile ID"
+                        >
+                          {copiedProfileId ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-1 italic">No profile (using this device only)</p>
+                  )}
                 </div>
                 <button
                   onClick={() => {
                     setShowCreateProfile(true)
                     setNameInput('')
+                    setNewlyCreatedProfileId(null)
                     setMobileMenuOpen(false)
                   }}
                   className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center"
                 >
                   Create Profile
                 </button>
-                <button
-                  onClick={() => {
-                    setShowLoginProfile(true)
-                    setProfileIdInput('')
-                    setMobileMenuOpen(false)
-                  }}
-                  className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center"
-                >
-                  Login / Switch Profile
-                </button>
+                {!profileId && (
+                  <button
+                    onClick={() => {
+                      setShowLoginProfile(true)
+                      setProfileIdInput('')
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center"
+                  >
+                    Login
+                  </button>
+                )}
                 {profileId && (
                   <button
                     onClick={() => {
@@ -448,6 +476,31 @@ export default function Navigation() {
                     className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center"
                   >
                     Change Profile Name
+                  </button>
+                )}
+                {profileId && (
+                  <button
+                    onClick={() => {
+                      if (confirm('Log out? You can log in again with your Profile ID to access this profile.')) {
+                        clearProfile()
+                        window.location.reload()
+                      }
+                      setMobileMenuOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 min-h-[44px] flex items-center border-b border-gray-200"
+                  >
+                    Log out
+                  </button>
+                )}
+                {profileId && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false)
+                      handleDeleteProfile()
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 min-h-[44px] flex items-center"
+                  >
+                    Delete profile
                   </button>
                 )}
               </div>
@@ -494,49 +547,86 @@ export default function Navigation() {
           {showCreateProfile && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden p-4 overflow-y-auto">
               <div className="bg-white rounded-lg p-4 w-full max-w-sm my-auto">
-                <h3 className="text-lg font-semibold mb-2">Create Profile</h3>
-                <p className="text-xs text-gray-600 mb-2">
-                  Create a new profile to access your history from any device. A unique Profile ID will be generated.
-                </p>
-                <p className="text-xs text-gray-500 mb-3">
-                  Save your Profile ID to access this profile from other devices.
-                </p>
-                <input
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  placeholder="Display name (e.g., Alice, Bob)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-3"
-                  autoFocus
-                  onKeyPress={(e) => e.key === 'Enter' && handleCreateProfile()}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCreateProfile}
-                    className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
-                  >
-                    Create Profile
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCreateProfile(false)
-                      setNameInput('')
-                    }}
-                    className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 min-h-[44px]"
-                  >
-                    Cancel
-                  </button>
-                </div>
+                {newlyCreatedProfileId ? (
+                  <>
+                    <h3 className="text-lg font-semibold mb-2">Profile created</h3>
+                    <p className="text-xs text-gray-600 mb-2">
+                      Save your Profile ID to log in on another device.
+                    </p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <code className="text-xs font-mono bg-gray-100 px-2 py-1.5 rounded flex-1 break-all">
+                        {newlyCreatedProfileId}
+                      </code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(newlyCreatedProfileId)
+                          setCopiedProfileId(true)
+                          setTimeout(() => setCopiedProfileId(false), 2000)
+                        }}
+                        className="shrink-0 px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded min-h-[44px]"
+                      >
+                        {copiedProfileId ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setNewlyCreatedProfileId(null)
+                        setShowCreateProfile(false)
+                        window.location.reload()
+                      }}
+                      className="w-full px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
+                    >
+                      Done
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-semibold mb-2">Create Profile</h3>
+                    <p className="text-xs text-gray-600 mb-2">
+                      Create a new profile to access your history from any device. A unique Profile ID will be generated.
+                    </p>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Save your Profile ID to access this profile from other devices.
+                    </p>
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Display name (e.g., Alice, Bob)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 mb-3"
+                      autoFocus
+                      onKeyPress={(e) => e.key === 'Enter' && handleCreateProfile()}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCreateProfile}
+                        className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
+                      >
+                        Create Profile
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowCreateProfile(false)
+                          setNameInput('')
+                          setNewlyCreatedProfileId(null)
+                        }}
+                        className="flex-1 px-3 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 min-h-[44px]"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
-          {/* Mobile Login / Switch Profile Modal */}
+          {/* Mobile Login Modal */}
           {showLoginProfile && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden p-4 overflow-y-auto">
               <div className="bg-white rounded-lg p-4 w-full max-w-sm my-auto">
-                <h3 className="text-lg font-semibold mb-2">Login / Switch Profile</h3>
+                <h3 className="text-lg font-semibold mb-2">Login</h3>
                 <p className="text-xs text-gray-600 mb-2">
-                  Enter your Profile ID to login or switch to another profile.
+                  Enter your Profile ID to log in. To use another profile, log out first, then log in with that profile's ID.
                 </p>
                 <p className="text-xs text-gray-500 mb-3">
                   Your Profile ID is shown in your profile menu. Save it to access your profile from any device.
@@ -555,7 +645,7 @@ export default function Navigation() {
                     onClick={handleLoginProfile}
                     className="flex-1 px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
                   >
-                    Login / Switch
+                    Login
                   </button>
                   <button
                     onClick={() => {

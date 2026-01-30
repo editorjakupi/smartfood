@@ -101,6 +101,17 @@ if (process.env.POSTGRES_URL) {
 // Database operations (works with both Postgres and SQLite)
 export const dbOperations = {
   // User operations
+  async userExists(userId: string): Promise<boolean> {
+    if (dbType === 'postgres') {
+      const result = await db.query('SELECT 1 FROM users WHERE id = $1 LIMIT 1', [userId])
+      return (result.rows?.length ?? 0) > 0
+    } else {
+      const stmt = db.prepare('SELECT 1 FROM users WHERE id = ? LIMIT 1')
+      const row = stmt.get(userId)
+      return !!row
+    }
+  },
+
   async getOrCreateUser(userId: string): Promise<string> {
     if (dbType === 'postgres') {
       await db.query('INSERT INTO users (id) VALUES ($1) ON CONFLICT (id) DO NOTHING', [userId])
@@ -236,6 +247,20 @@ export const dbOperations = {
       return result.rowCount > 0
     } else {
       const stmt = db.prepare('DELETE FROM food_history WHERE user_id = ?')
+      const result = stmt.run(userId)
+      return result.changes > 0
+    }
+  },
+
+  /** Permanently delete all data for a user (history + user row). Cannot be undone. */
+  async deleteUserData(userId: string): Promise<boolean> {
+    if (dbType === 'postgres') {
+      await db.query('DELETE FROM food_history WHERE user_id = $1', [userId])
+      const userResult = await db.query('DELETE FROM users WHERE id = $1', [userId])
+      return (userResult.rowCount ?? 0) > 0
+    } else {
+      db.prepare('DELETE FROM food_history WHERE user_id = ?').run(userId)
+      const stmt = db.prepare('DELETE FROM users WHERE id = ?')
       const result = stmt.run(userId)
       return result.changes > 0
     }
