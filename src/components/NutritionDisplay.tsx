@@ -125,7 +125,7 @@ export default function NutritionDisplay({
     return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
 
-  if (!nutrition || foodClass === 'error') return null
+  if (!nutrition || foodClass === 'error' || !scaledNutrition) return null
 
   return (
     <div className="space-y-6">
