@@ -50,16 +50,20 @@ async function callGroq(messages: Message[]): Promise<string> {
 
   if (!response.ok) {
     let errorMessage = `Groq API error: ${response.status}`
-    try {
-      const errorData = await response.json()
-      if (errorData.error?.message) {
-        errorMessage = errorData.error.message
-      } else if (errorData.message) {
-        errorMessage = errorData.message
+    if (response.status === 429) {
+      errorMessage = 'Too many requests. Groq quota reached. Please try again in a few minutes.'
+    } else {
+      try {
+        const errorData = await response.json()
+        if (errorData.error?.message) {
+          errorMessage = errorData.error.message
+        } else if (errorData.message) {
+          errorMessage = errorData.message
+        }
+      } catch {
+        const errorText = await response.text().catch(() => 'Unknown error')
+        if (errorText) errorMessage += ` - ${errorText}`
       }
-    } catch {
-      const errorText = await response.text().catch(() => 'Unknown error')
-      if (errorText) errorMessage += ` - ${errorText}`
     }
     throw new Error(errorMessage)
   }

@@ -13,7 +13,19 @@ Web app that identifies food from images, shows nutrition data (per 100 g), and 
 - **Translation** — English food names translated to Swedish via Llama 3.1 (fallback: hardcoded list) for Livsmedelsverket lookup.
 - **Predictions** — Expected next meal (calories and type) and personalized tips from eating history (LSTM or simplified model when TF.js model is unavailable).
 - **Chat** — Dietary advice powered by Llama 3.1 (Groq).
-- **History, camera, profiles** — Per-user history (SQLite locally, Postgres in production); camera capture; create profile, login with Profile ID, log out to use another profile (desktop and mobile).
+- **History, camera, profiles** — Per-user history (SQLite locally, Postgres in production); add, edit, delete entries; export CSV; manual add; camera capture; create profile, login with Profile ID, log out to use another profile (desktop and mobile).
+- **Today summary** — Daily meals, kcal and protein with clear “eaten / goal” labels when goals are set (Settings). Water tracker and streak.
+- **Dark mode** — Full app support; toggle in navigation.
+- **Barcode** — Scan or enter EAN/UPC on home for product nutrition (Open Food Facts); results shown in same Nutrition display as image classification.
+
+---
+
+## Recent changes
+
+- **Today:** Kcal and protein show “eaten / goal” so e.g. 160 / 200 g is clearly “160 g eaten, 200 g goal”. History table header “Protein (g)”.
+- **Build:** `dev` and `build` use `--webpack` so Next.js runs on Windows paths with special characters (e.g. “ä”).
+- **API:** User-friendly handling for rate limits (429) from Vision/Groq.
+- **UX:** Touch-friendly buttons (min 44px), Safari note for barcode camera; all UI copy in English.
 
 ---
 
@@ -53,6 +65,8 @@ Edit `.env.local` and set at least:
 
 - `GROQ_API_KEY`
 - `GOOGLE_CLOUD_VISION_API_KEY`
+
+**If you use a path containing special characters (e.g. “ä”) on Windows,** use the project’s `dev`/`build` scripts as-is; they already use `--webpack` to avoid Turbopack path issues.
 
 ```bash
 npm run dev

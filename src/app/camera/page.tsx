@@ -53,10 +53,10 @@ export default function CameraPage() {
   return (
     <div className="space-y-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
           Camera
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-gray-300">
           Take a photo of your food to get nutrition information
         </p>
       </div>
@@ -65,9 +65,9 @@ export default function CameraPage() {
         <CameraCapture onCapture={handleCapture} loading={loading} />
         
         {result && (result as any).error ? (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <p className="text-red-800 font-medium">Error</p>
-            <p className="text-red-600 mt-2">{(result as any).error}</p>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+            <p className="text-red-800 dark:text-red-200 font-medium">Error</p>
+            <p className="text-red-600 dark:text-red-300 mt-2">{(result as any).error}</p>
           </div>
         ) : result ? (
           <NutritionDisplay
@@ -78,7 +78,7 @@ export default function CameraPage() {
           />
         ) : null}
         {!result && !loading && (
-          <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
             Take a photo to see nutrition information
           </div>
         )}

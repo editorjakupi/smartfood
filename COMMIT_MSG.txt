@@ -1,0 +1,8 @@
+App: Today eaten/goal labels, dark mode, i18n, history CRUD+export, barcode, settings, 429 handling, webpack, README
+
+- Today: kcal and protein show "(eaten / goal)" so 160/200 g is clear
+- History: add/edit/delete, export CSV, manual add; Protein (g) column
+- Settings: daily calorie/protein goals, current/target weight
+- Barcode: scan or enter EAN on home; touch-friendly, Safari note
+- Dark mode, English UI, rate-limit (429) messages, dev/build --webpack
+- README: Recent changes, Today/Barcode/UX, webpack note

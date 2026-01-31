@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "AI-powered food classification system with CNN, LSTM, and LLM integration",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start -p 3000",
     "lint": "next lint"
   },

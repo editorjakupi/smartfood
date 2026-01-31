@@ -159,7 +159,7 @@ export default function ChatInterface() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col h-[600px]">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col h-[600px]">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-6 py-4 border-b border-primary-500">
         <div className="flex items-center justify-between">
@@ -187,17 +187,17 @@ export default function ChatInterface() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">
+          <div className="text-center text-gray-500 dark:text-gray-400 py-12">
             <div className="mb-6">
-              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
-              <p className="text-lg font-medium text-gray-700 mb-2">Start a conversation</p>
-              <p className="text-sm text-gray-500">Ask a question about nutrition, diet, or health</p>
+              <p className="text-lg font-medium text-gray-700 dark:text-gray-200 mb-2">Start a conversation</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Ask a question about nutrition, diet, or health</p>
             </div>
             <div className="flex flex-wrap gap-2 justify-center max-w-md mx-auto">
               {[
@@ -208,7 +208,7 @@ export default function ChatInterface() {
                 <button
                   key={index}
                   onClick={() => setInput(suggestion)}
-                  className="px-4 py-2 text-sm bg-white border border-gray-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700 text-gray-700 transition-colors shadow-sm"
+                  className="px-4 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-300 dark:hover:border-primary-600 hover:text-primary-700 dark:hover:text-primary-300 text-gray-700 dark:text-gray-200 transition-colors shadow-sm"
                 >
                   {suggestion}
                 </button>
@@ -236,7 +236,7 @@ export default function ChatInterface() {
                   max-w-[75%] rounded-2xl px-4 py-3 shadow-sm
                   ${message.role === 'user'
                     ? 'bg-primary-600 text-white rounded-br-sm'
-                    : 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm'}
+                    : 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-bl-sm'}
                 `}
               >
                 {message.role === 'assistant' ? (
@@ -245,33 +245,33 @@ export default function ChatInterface() {
                       remarkPlugins={[remarkGfm]}
                       components={{
                         // Headings
-                        h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 mt-3 first:mt-0 text-gray-900" {...props} />,
-                        h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 mt-3 first:mt-0 text-gray-900" {...props} />,
-                        h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-1.5 mt-2 first:mt-0 text-gray-900" {...props} />,
+                        h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 mt-3 first:mt-0 text-gray-900 dark:text-gray-100" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 mt-3 first:mt-0 text-gray-900 dark:text-gray-100" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-1.5 mt-2 first:mt-0 text-gray-900 dark:text-gray-100" {...props} />,
                         // Paragraphs
-                        p: ({node, ...props}) => <p className="mb-2 last:mb-0 text-gray-800 leading-relaxed" {...props} />,
+                        p: ({node, ...props}) => <p className="mb-2 last:mb-0 text-gray-800 dark:text-gray-200 leading-relaxed" {...props} />,
                         // Lists
-                        ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 space-y-1 text-gray-800" {...props} />,
-                        ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 space-y-1 text-gray-800" {...props} />,
-                        li: ({node, ...props}) => <li className="ml-2 text-gray-800" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 space-y-1 text-gray-800 dark:text-gray-200" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 space-y-1 text-gray-800 dark:text-gray-200" {...props} />,
+                        li: ({node, ...props}) => <li className="ml-2 text-gray-800 dark:text-gray-200" {...props} />,
                         // Strong/Bold
-                        strong: ({node, ...props}) => <strong className="font-semibold text-gray-900" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-semibold text-gray-900 dark:text-gray-100" {...props} />,
                         // Emphasis/Italic
-                        em: ({node, ...props}) => <em className="italic text-gray-800" {...props} />,
+                        em: ({node, ...props}) => <em className="italic text-gray-800 dark:text-gray-200" {...props} />,
                         // Code blocks
                         code: ({node, inline, ...props}: any) => 
                           inline ? (
-                            <code className="bg-gray-100 text-primary-700 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />
+                            <code className="bg-gray-100 dark:bg-gray-700 text-primary-700 dark:text-primary-300 px-1.5 py-0.5 rounded text-sm font-mono" {...props} />
                           ) : (
-                            <code className="block bg-gray-100 text-gray-800 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-2" {...props} />
+                            <code className="block bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-3 rounded-lg text-sm font-mono overflow-x-auto mb-2" {...props} />
                           ),
-                        pre: ({node, ...props}) => <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto mb-2" {...props} />,
+                        pre: ({node, ...props}) => <pre className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg overflow-x-auto mb-2 text-gray-800 dark:text-gray-200" {...props} />,
                         // Links
-                        a: ({node, ...props}) => <a className="text-primary-600 hover:text-primary-700 underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                        a: ({node, ...props}) => <a className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 underline" target="_blank" rel="noopener noreferrer" {...props} />,
                         // Blockquotes
-                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary-300 pl-3 italic text-gray-700 my-2" {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary-300 dark:border-primary-600 pl-3 italic text-gray-700 dark:text-gray-300 my-2" {...props} />,
                         // Horizontal rule
-                        hr: ({node, ...props}) => <hr className="my-3 border-gray-300" {...props} />,
+                        hr: ({node, ...props}) => <hr className="my-3 border-gray-300 dark:border-gray-600" {...props} />,
                       }}
                     >
                       {message.content}
@@ -302,8 +302,8 @@ export default function ChatInterface() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
             </div>
-            <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-              <div className="flex items-center gap-2 text-gray-600">
+            <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                   <span className="w-2 h-2 bg-primary-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
@@ -319,7 +319,7 @@ export default function ChatInterface() {
       </div>
 
       {/* Input area */}
-      <div className="border-t bg-white p-4">
+      <div className="border-t border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-4">
         <form onSubmit={sendMessage} className="flex gap-2">
           <div className="flex-1 relative">
             <input
@@ -327,7 +327,7 @@ export default function ChatInterface() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about nutrition, diet, or health..."
-              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 disabled:bg-gray-50 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
               disabled={loading}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -342,8 +342,8 @@ export default function ChatInterface() {
               className={`
                 absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-colors
                 ${loading || !input.trim()
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-primary-600 hover:bg-primary-50 hover:text-primary-700'}
+                  ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                  : 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-700 dark:hover:text-primary-300'}
               `}
               title="Send message (Enter)"
             >
@@ -353,7 +353,7 @@ export default function ChatInterface() {
             </button>
           </div>
         </form>
-        <p className="text-xs text-gray-500 mt-2 text-center">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
           Press Enter to send, Shift+Enter for new line
         </p>
       </div>

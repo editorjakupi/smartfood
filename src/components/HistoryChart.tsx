@@ -73,27 +73,27 @@ export default function HistoryChart({ data }: HistoryChartProps) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Total Meals</div>
-          <div className="text-2xl font-bold text-gray-900">{data.length}</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total Meals</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.length}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Total Calories</div>
-          <div className="text-2xl font-bold text-gray-900">{totalCalories.toLocaleString()}</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total Calories</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalCalories.toLocaleString()}</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Average per Meal</div>
-          <div className="text-2xl font-bold text-gray-900">{avgCalories} kcal</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Average per Meal</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{avgCalories} kcal</div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-sm text-gray-500">Days with Data</div>
-          <div className="text-2xl font-bold text-gray-900">{chartData.length}</div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Days with Data</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{chartData.length}</div>
         </div>
       </div>
 
       {chartData.length > 1 && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
             Nutrition Intake Over Time
           </h3>
           <div className="h-80">

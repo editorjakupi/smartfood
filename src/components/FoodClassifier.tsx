@@ -1,16 +1,33 @@
 'use client'
 
-import { useState, useRef, ChangeEvent } from 'react'
+import { useState, useRef, useEffect, ChangeEvent } from 'react'
 
 interface FoodClassifierProps {
   onClassify: (imageData: string) => void
   loading: boolean
+  /** Controlled or initial preview (e.g. restored from sessionStorage). */
+  initialPreview?: string | null
+  /** When user selects a file or clears, notify parent so it can persist. */
+  onPreviewChange?: (dataUrl: string | null) => void
+  /** When user clicks Clear, parent should clear persisted image + result. */
+  onClear?: () => void
 }
 
-export default function FoodClassifier({ onClassify, loading }: FoodClassifierProps) {
-  const [preview, setPreview] = useState<string | null>(null)
+export default function FoodClassifier({ onClassify, loading, initialPreview = null, onPreviewChange, onClear }: FoodClassifierProps) {
+  const [preview, setPreviewState] = useState<string | null>(initialPreview ?? null)
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const setPreview = (value: string | null) => {
+    setPreviewState(value)
+    onPreviewChange?.(value)
+  }
+
+  useEffect(() => {
+    if (initialPreview !== undefined && initialPreview !== preview) {
+      setPreviewState(initialPreview ?? null)
+    }
+  }, [initialPreview])
 
   const handleFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -59,15 +76,17 @@ export default function FoodClassifier({ onClassify, loading }: FoodClassifierPr
   }
 
   const handleClear = () => {
-    setPreview(null)
+    setPreviewState(null)
+    onPreviewChange?.(null)
+    onClear?.()
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+    <div className="h-full flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
         Upload Image
       </h2>
 
@@ -75,7 +94,7 @@ export default function FoodClassifier({ onClassify, loading }: FoodClassifierPr
         className={`
           relative border-2 border-dashed rounded-lg p-8
           transition-colors duration-200
-          ${dragActive ? 'border-primary-500 bg-primary-50' : 'border-gray-300'}
+          ${dragActive ? 'border-primary-500 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-300 dark:border-gray-600'}
           ${preview ? 'border-solid' : ''}
         `}
         onDragEnter={handleDrag}
@@ -92,10 +111,10 @@ export default function FoodClassifier({ onClassify, loading }: FoodClassifierPr
             />
             <button
               onClick={handleClear}
-              className="absolute top-2 right-2 bg-white rounded-full p-1 shadow hover:bg-gray-100"
+              className="absolute top-2 right-2 bg-white dark:bg-gray-700 rounded-full p-1 shadow hover:bg-gray-100 dark:hover:bg-gray-600"
               aria-label="Remove image"
             >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -103,7 +122,7 @@ export default function FoodClassifier({ onClassify, loading }: FoodClassifierPr
         ) : (
           <div className="text-center">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
               stroke="currentColor"
               fill="none"
               viewBox="0 0 48 48"
@@ -162,7 +181,7 @@ export default function FoodClassifier({ onClassify, loading }: FoodClassifierPr
           <button
             onClick={handleClear}
             disabled={loading}
-            className="py-2 px-4 rounded-lg font-medium text-gray-700 border border-gray-300 hover:bg-gray-50"
+            className="py-2 px-4 rounded-lg font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
           >
             Clear
           </button>

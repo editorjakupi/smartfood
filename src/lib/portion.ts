@@ -6,6 +6,14 @@
 
 export const DEFAULT_ESTIMATED_PORTION_GRAMS = 150
 
+/** Portion size presets: Small / Normal / Large (grams). */
+export const PORTION_SIZES = {
+  small: 100,
+  normal: 150,
+  large: 220
+} as const
+export type PortionSizeKey = keyof typeof PORTION_SIZES
+
 export interface NutritionPer100 {
   calories: number
   protein: number

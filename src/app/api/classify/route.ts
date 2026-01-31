@@ -233,6 +233,12 @@ export async function POST(request: NextRequest) {
         } else {
           const errorData = await visionResponse.json().catch(() => ({}))
           console.log('Google Cloud Vision API error:', errorData)
+          if (visionResponse.status === 429) {
+            return NextResponse.json(
+              { error: 'Too many requests. Vision quota reached. Please try again in a few minutes.' },
+              { status: 429 }
+            )
+          }
         }
       } catch (visionError: any) {
         console.log('Google Cloud Vision API failed:', visionError.message)

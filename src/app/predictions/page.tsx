@@ -101,17 +101,17 @@ export default function PredictionsPage() {
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Eating Pattern Predictions
           </h1>
-          <p className="text-gray-600 max-w-2xl">
+          <p className="text-gray-600 dark:text-gray-300 max-w-2xl">
             <strong>Purpose:</strong> See expected next meal (calories and type) and get personalized tips from your history — so you can easily plan meals and balance your diet.
           </p>
         </div>
         <button
           onClick={refreshPredictions}
           disabled={loading}
-          className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Loading...' : 'Refresh'}
         </button>
@@ -120,10 +120,10 @@ export default function PredictionsPage() {
       {/* LSTM Status Card */}
       <div className={`rounded-lg shadow-lg p-6 border-2 ${
         isLSTMUsed 
-          ? 'bg-green-50 border-green-300' 
+          ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' 
           : needsMoreData
-            ? 'bg-yellow-50 border-yellow-300'
-            : 'bg-gray-50 border-gray-300'
+            ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
+            : 'bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
       }`}>
         <div className="flex items-start gap-4">
           <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
@@ -144,11 +144,11 @@ export default function PredictionsPage() {
             )}
           </div>
           <div className="flex-1">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
               LSTM Model Status
             </h2>
             <p className={`font-medium mb-2 ${
-              isLSTMUsed ? 'text-green-800' : needsMoreData ? 'text-yellow-800' : 'text-gray-800'
+              isLSTMUsed ? 'text-green-800 dark:text-green-200' : needsMoreData ? 'text-yellow-800 dark:text-yellow-200' : 'text-gray-800 dark:text-gray-200'
             }`}>
               {isLSTMUsed 
                 ? '✓ LSTM Model Active'
@@ -156,26 +156,26 @@ export default function PredictionsPage() {
                   ? `⚠ Using Simplified Predictions (Need ${14 - historyCount} more meals for full LSTM)`
                   : '⚠ Using Simplified Predictions (LSTM model file not found)'}
             </p>
-            <p className="text-sm text-gray-700 mb-2">
+            <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
               {data?.note || 'Loading model status...'}
             </p>
             {data?.predictions && data.predictions.length > 0 && (
               <p className="text-sm font-medium mb-3">
                 {data.lstmModelUsed ? (
-                  <span className="text-green-700">✓ LSTM model (TensorFlow.js) used for predictions</span>
+                  <span className="text-green-700 dark:text-green-200">✓ LSTM model (TensorFlow.js) used for predictions</span>
                 ) : (
-                  <span className="text-amber-700">Using simplified estimates (see note above)</span>
+                  <span className="text-amber-700 dark:text-amber-200">Using simplified estimates (see note above)</span>
                 )}
               </p>
             )}
-            <div className="text-sm text-gray-600 space-y-1">
+            <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
               <p><strong>Current meals in history:</strong> {historyCount}</p>
               <p><strong>Required for full LSTM:</strong> 14 meals</p>
               <p><strong>Minimum for predictions:</strong> 5 meals</p>
             </div>
             {needsMoreData && historyCount >= 5 && (
-              <div className="mt-4 p-3 bg-yellow-100 rounded-lg">
-                <p className="text-sm text-yellow-800">
+              <div className="mt-4 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
                   <strong>Tip:</strong> You have {historyCount} meals. Continue logging meals to unlock full LSTM predictions with 88.3% accuracy!
                 </p>
               </div>
@@ -189,9 +189,9 @@ export default function PredictionsPage() {
           <div className="loading-spinner"></div>
         </div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-800 font-medium">Error</p>
-          <p className="text-red-600 mt-2">{error}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
+          <p className="text-red-800 dark:text-red-200 font-medium">Error</p>
+          <p className="text-red-600 dark:text-red-300 mt-2">{error}</p>
           <button
             onClick={refreshPredictions}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -200,10 +200,10 @@ export default function PredictionsPage() {
           </button>
         </div>
       ) : data?.message ? (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-          <p className="text-blue-800 font-medium mb-2">{data.message}</p>
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+          <p className="text-blue-800 dark:text-blue-200 font-medium mb-2">{data.message}</p>
           {data.recommendations && data.recommendations.length > 0 && (
-            <ul className="text-blue-700 text-sm mt-3 space-y-1">
+            <ul className="text-blue-700 dark:text-blue-200 text-sm mt-3 space-y-1">
               {data.recommendations.map((rec, idx) => (
                 <li key={idx}>• {rec}</li>
               ))}
@@ -215,8 +215,8 @@ export default function PredictionsPage() {
           {/* Predictions */}
           <div>
             <div className="mb-4">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Expected next meal</h2>
-              <p className="text-gray-600 text-sm">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Expected next meal</h2>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
                 Based on your eating history — use this to plan portions and food choices.
               </p>
             </div>
@@ -230,58 +230,58 @@ export default function PredictionsPage() {
                     key={index} 
                     className={`rounded-lg shadow-lg p-6 border-2 ${
                       isCaloriePrediction 
-                        ? 'bg-gradient-to-br from-orange-50 to-yellow-50 border-orange-200' 
+                        ? 'bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 border-orange-200 dark:border-orange-700' 
                         : isCategoryPrediction
-                          ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200'
-                          : 'bg-white border-gray-200'
+                          ? 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-700'
+                          : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                     }`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         {isCaloriePrediction && (
-                          <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                           </svg>
                         )}
                         {isCategoryPrediction && (
-                          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                           </svg>
                         )}
-                        <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 capitalize">
                           {pred.type.replace(/_/g, ' ')}
                         </h3>
                       </div>
                       {pred.confidence !== undefined && (
                         <span className={`px-2 py-1 text-xs font-medium rounded ${
                           pred.confidence > 0.8 
-                            ? 'bg-green-100 text-green-800' 
+                            ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200' 
                             : pred.confidence > 0.6
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gray-100 text-gray-800'
+                              ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
                         }`}>
                           {(pred.confidence * 100).toFixed(0)}% confidence
                         </span>
                       )}
                     </div>
                     <p className={`text-lg font-medium mb-3 ${
-                      isCaloriePrediction ? 'text-orange-900' : isCategoryPrediction ? 'text-blue-900' : 'text-gray-700'
+                      isCaloriePrediction ? 'text-orange-900 dark:text-orange-200' : isCategoryPrediction ? 'text-blue-900 dark:text-blue-200' : 'text-gray-700 dark:text-gray-200'
                     }`}>
                       {pred.prediction}
                     </p>
-                    <p className="text-xs text-gray-500 italic mb-2">{pred.basedOn}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 italic mb-2">{pred.basedOn}</p>
                     {pred.details && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                         {pred.details.calories && (
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="font-medium text-gray-700">Calories:</span>
-                            <span className="text-orange-600 font-semibold">{pred.details.calories} kcal</span>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Calories:</span>
+                            <span className="text-orange-600 dark:text-orange-400 font-semibold">{pred.details.calories} kcal</span>
                           </div>
                         )}
                         {pred.details.category && (
                           <div className="flex items-center gap-2 text-sm mt-1">
-                            <span className="font-medium text-gray-700">Category:</span>
-                            <span className="text-blue-600 font-semibold capitalize">{pred.details.category}</span>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Category:</span>
+                            <span className="text-blue-600 dark:text-blue-400 font-semibold capitalize">{pred.details.category}</span>
                           </div>
                         )}
                       </div>
@@ -296,19 +296,19 @@ export default function PredictionsPage() {
           {data.patterns && data.patterns.length > 0 && (
             <div>
               <div className="mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Your eating patterns</h2>
-                <p className="text-gray-600 text-sm">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Your eating patterns</h2>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
                   Patterns from your eating history — variety, calories, and meal times.
                 </p>
               </div>
-              <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-200 dark:border-gray-600">
                 <ul className="space-y-3">
                   {data.patterns.map((pattern, index) => (
-                    <li key={index} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                      <svg className="w-5 h-5 text-primary-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <li key={index} className="flex items-start gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
+                      <svg className="w-5 h-5 text-primary-600 dark:text-primary-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
-                      <span className="text-gray-800 font-medium">{pattern}</span>
+                      <span className="text-gray-800 dark:text-gray-200 font-medium">{pattern}</span>
                     </li>
                   ))}
                 </ul>
@@ -320,19 +320,19 @@ export default function PredictionsPage() {
           {data.recommendations && data.recommendations.length > 0 && (
             <div>
               <div className="mb-4">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Health tips</h2>
-                <p className="text-gray-600 text-sm">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Health tips</h2>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
                   Personalized suggestions from your patterns — for a more balanced diet.
                 </p>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-lg shadow-lg p-6">
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-200 dark:border-blue-700 rounded-lg shadow-lg p-6">
                 <ul className="space-y-3">
                   {data.recommendations.map((rec, index) => (
-                    <li key={index} className="flex items-start gap-3 p-3 bg-white bg-opacity-60 rounded-lg backdrop-blur-sm">
-                      <svg className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <li key={index} className="flex items-start gap-3 p-3 bg-white dark:bg-gray-800/60 bg-opacity-60 dark:bg-opacity-60 rounded-lg backdrop-blur-sm">
+                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                       </svg>
-                      <span className="text-blue-900 font-medium">{rec}</span>
+                      <span className="text-blue-900 dark:text-blue-200 font-medium">{rec}</span>
                     </li>
                   ))}
                 </ul>
@@ -341,8 +341,8 @@ export default function PredictionsPage() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-500">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+          <p className="text-gray-500 dark:text-gray-400">
             No predictions available. Start logging meals to get predictions.
           </p>
         </div>

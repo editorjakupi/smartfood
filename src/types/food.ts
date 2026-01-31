@@ -34,6 +34,7 @@ export interface NutritionData {
 }
 
 export interface HistoryEntry {
+  id?: number
   date: string
   foodClass: string
   calories: number
@@ -41,6 +42,7 @@ export interface HistoryEntry {
   carbs: number
   fat: number
   fiber?: number
+  mealType?: string | null
 }
 
 export interface PatternAnalysis {
