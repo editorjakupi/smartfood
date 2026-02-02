@@ -159,8 +159,8 @@ export default function CameraCapture({ onCapture, loading }: CameraCaptureProps
   }, [stopCamera])
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 w-full min-w-0">
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
         Camera
       </h2>
 
@@ -245,13 +245,13 @@ export default function CameraCapture({ onCapture, loading }: CameraCaptureProps
           <>
             <button
               onClick={captureImage}
-              className="flex-1 py-2 px-4 rounded-lg font-medium text-white bg-primary-600 hover:bg-primary-700"
+              className="flex-1 min-h-[44px] touch-manipulation py-2 px-4 rounded-lg font-medium text-white bg-primary-600 hover:bg-primary-700"
             >
               Capture
             </button>
             <button
               onClick={stopCamera}
-              className="py-2 px-4 rounded-lg font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+              className="min-h-[44px] touch-manipulation py-2 px-4 rounded-lg font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
             >
               Cancel
             </button>
@@ -264,7 +264,7 @@ export default function CameraCapture({ onCapture, loading }: CameraCaptureProps
               onClick={handleClassify}
               disabled={loading}
               className={`
-                flex-1 py-2 px-4 rounded-lg font-medium text-white
+                flex-1 min-h-[44px] touch-manipulation py-2 px-4 rounded-lg font-medium text-white
                 ${loading
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-primary-600 hover:bg-primary-700'}
@@ -282,7 +282,7 @@ export default function CameraCapture({ onCapture, loading }: CameraCaptureProps
             <button
               onClick={retake}
               disabled={loading}
-              className="py-2 px-4 rounded-lg font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+              className="min-h-[44px] touch-manipulation py-2 px-4 rounded-lg font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
             >
               Retake
             </button>

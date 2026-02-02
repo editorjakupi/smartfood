@@ -166,7 +166,6 @@ export default function Navigation() {
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
             <a href="/" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-2 py-2 text-sm">Home</a>
-            <a href="/camera" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-2 py-2 text-sm">Camera</a>
             <a href="/chat" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-2 py-2 text-sm">Chat</a>
             <a href="/history" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-2 py-2 text-sm">History</a>
             <a href="/favorites" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-2 py-2 text-sm">Favorites</a>
@@ -398,7 +397,6 @@ export default function Navigation() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 dark:border-gray-700 py-2">
             <a href="/" className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm min-h-[44px] flex items-center" onClick={() => setMobileMenuOpen(false)}>Home</a>
-            <a href="/camera" className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm min-h-[44px] flex items-center" onClick={() => setMobileMenuOpen(false)}>Camera</a>
             <a href="/chat" className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm min-h-[44px] flex items-center" onClick={() => setMobileMenuOpen(false)}>Chat</a>
             <a href="/history" className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm min-h-[44px] flex items-center" onClick={() => setMobileMenuOpen(false)}>History</a>
             <a href="/favorites" className="block px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm min-h-[44px] flex items-center" onClick={() => setMobileMenuOpen(false)}>Favorites</a>

@@ -67,6 +67,17 @@ if (process.env.POSTGRES_URL) {
         try { await db.query(`ALTER TABLE user_settings ADD COLUMN daily_fat_goal REAL;`) } catch (_) {}
         try { await db.query(`ALTER TABLE user_settings ADD COLUMN daily_carbs_goal REAL;`) } catch (_) {}
         await db.query(`
+          CREATE TABLE IF NOT EXISTS daily_goal_logs (
+            user_id TEXT NOT NULL,
+            log_date DATE NOT NULL,
+            calories_goal REAL,
+            protein_goal REAL,
+            fat_goal REAL,
+            carbs_goal REAL,
+            PRIMARY KEY (user_id, log_date)
+          );
+        `).catch(() => {})
+        await db.query(`
           CREATE TABLE IF NOT EXISTS favorites (
             id SERIAL PRIMARY KEY,
             user_id TEXT NOT NULL,
@@ -156,6 +167,17 @@ if (process.env.POSTGRES_URL) {
   try { db.exec(`ALTER TABLE user_settings ADD COLUMN target_weight_kg REAL;`) } catch (_) {}
   try { db.exec(`ALTER TABLE user_settings ADD COLUMN daily_fat_goal REAL;`) } catch (_) {}
   try { db.exec(`ALTER TABLE user_settings ADD COLUMN daily_carbs_goal REAL;`) } catch (_) {}
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS daily_goal_logs (
+      user_id TEXT NOT NULL,
+      log_date TEXT NOT NULL,
+      calories_goal REAL,
+      protein_goal REAL,
+      fat_goal REAL,
+      carbs_goal REAL,
+      PRIMARY KEY (user_id, log_date)
+    );
+  `)
 }
 
 // Database operations (works with both Postgres and SQLite)
@@ -542,6 +564,36 @@ export const dbOperations = {
     const newGlasses = cur.water_glasses + 1
     await this.setUserSettings(userId, { water_glasses: newGlasses })
     return newGlasses
+  },
+
+  /** Save today's goals as a daily log (for history). Called when user saves settings. */
+  async saveDailyGoalLog(userId: string, date: string, goals: { calories?: number | null; protein?: number | null; fat?: number | null; carbs?: number | null }): Promise<void> {
+    const logDate = date.slice(0, 10)
+    const calories = goals.calories ?? null
+    const protein = goals.protein ?? null
+    const fat = goals.fat ?? null
+    const carbs = goals.carbs ?? null
+    if (dbType === 'postgres') {
+      await db.query(`
+        INSERT INTO daily_goal_logs (user_id, log_date, calories_goal, protein_goal, fat_goal, carbs_goal)
+        VALUES ($1, $2::date, $3, $4, $5, $6)
+        ON CONFLICT (user_id, log_date) DO UPDATE SET
+          calories_goal = EXCLUDED.calories_goal,
+          protein_goal = EXCLUDED.protein_goal,
+          fat_goal = EXCLUDED.fat_goal,
+          carbs_goal = EXCLUDED.carbs_goal
+      `, [userId, logDate, calories, protein, fat, carbs])
+    } else {
+      db.prepare(`
+        INSERT INTO daily_goal_logs (user_id, log_date, calories_goal, protein_goal, fat_goal, carbs_goal)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (user_id, log_date) DO UPDATE SET
+          calories_goal = excluded.calories_goal,
+          protein_goal = excluded.protein_goal,
+          fat_goal = excluded.fat_goal,
+          carbs_goal = excluded.carbs_goal
+      `).run(userId, logDate, calories, protein, fat, carbs)
+    }
   },
 
   // Favorites

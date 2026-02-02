@@ -16,6 +16,8 @@ interface NutritionDisplayProps {
   fromBarcode?: string
   /** If true, show "Save to history" button and do not auto-save. If false/undefined, auto-save as before. */
   manualSaveOnly?: boolean
+  /** If true, nutrition is already total (e.g. from ingredients), do not scale by portion. */
+  isTotalRecipe?: boolean
 }
 
 export default function NutritionDisplay({
@@ -24,7 +26,8 @@ export default function NutritionDisplay({
   nutrition,
   nutritionSource,
   fromBarcode,
-  manualSaveOnly = false
+  manualSaveOnly = false,
+  isTotalRecipe = false
 }: NutritionDisplayProps) {
   const [portion, setPortion] = useState<PortionSizeKey>('normal')
   const [mealType, setMealType] = useState<MealType | null>(null)
@@ -40,8 +43,18 @@ export default function NutritionDisplay({
   const portionGrams = PORTION_SIZES[portion]
   const scaledNutrition = useMemo(() => {
     if (!nutrition) return null
+    if (isTotalRecipe) {
+      const n = nutrition as Record<string, number>
+      return {
+        calories: n.calories ?? 0,
+        protein: n.protein ?? 0,
+        carbs: n.carbs ?? 0,
+        fat: n.fat ?? 0,
+        fiber: n.fiber ?? 0
+      }
+    }
     return scaleNutritionPer100ToPortion(nutrition, portionGrams)
-  }, [nutrition, portionGrams])
+  }, [nutrition, portionGrams, isTotalRecipe])
 
   useEffect(() => {
     const fetchRecommendations = async () => {
@@ -59,10 +72,11 @@ export default function NutritionDisplay({
         if (!historyResponse.ok) throw new Error('Failed to fetch history')
         const historyData = await historyResponse.json()
         const history = historyData.history || []
+        const nutritionForApi = isTotalRecipe ? { ...scaledNutrition, source: 'ingredients' } : scaledNutrition
         const response = await fetch('/api/recommendations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nutrition: scaledNutrition, history })
+          body: JSON.stringify({ nutrition: nutritionForApi, history })
         })
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}))
@@ -112,7 +126,7 @@ export default function NutritionDisplay({
         fetchRecommendations()
       }
     }
-  }, [foodClass, nutrition, scaledNutrition, confidence, portion, mealType, manualSaveOnly])
+  }, [foodClass, nutrition, scaledNutrition, confidence, portion, mealType, manualSaveOnly, isTotalRecipe])
 
   const formatFoodName = (name: string) => {
     if (name === 'error') return 'Error'
@@ -146,77 +160,83 @@ export default function NutritionDisplay({
         </div>
 
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-          The app does not measure portion size from the image, only the food type. Values below are per 100 g and for your selected serving size.
+          {isTotalRecipe
+            ? 'Values below are the total for the entered ingredients.'
+            : 'The app does not measure portion size from the image, only the food type. Values below are per 100 g and for your selected serving size.'}
         </p>
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="text-xs text-gray-500 dark:text-gray-400 mr-1 self-center">Portion:</span>
-          {(Object.keys(PORTION_SIZES) as PortionSizeKey[]).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPortion(p)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                portion === p
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {p === 'small' ? 'Small' : p === 'normal' ? 'Normal' : 'Large'} ({PORTION_SIZES[p]} g)
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="text-xs text-gray-500 dark:text-gray-400 mr-1 self-center">Meal type:</span>
-          {MEAL_TYPES.map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMealType(mealType === m ? null : m)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                mealType === m
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {m.charAt(0).toUpperCase() + m.slice(1)}
-            </button>
-          ))}
-        </div>
+        {!isTotalRecipe && (
+          <>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="text-xs text-gray-500 dark:text-gray-400 mr-1 self-center">Portion:</span>
+              {(Object.keys(PORTION_SIZES) as PortionSizeKey[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPortion(p)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    portion === p
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {p === 'small' ? 'Small' : p === 'normal' ? 'Normal' : 'Large'} ({PORTION_SIZES[p]} g)
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="text-xs text-gray-500 dark:text-gray-400 mr-1 self-center">Meal type:</span>
+              {MEAL_TYPES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMealType(mealType === m ? null : m)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    mealType === m
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
               {scaledNutrition.calories}
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">kcal</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.calories || 0} per 100 g)</div>
+            {!isTotalRecipe && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.calories || 0} per 100 g)</div>}
           </div>
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {scaledNutrition.protein}g
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">Protein</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.protein || 0}g per 100 g)</div>
+            {!isTotalRecipe && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.protein || 0}g per 100 g)</div>}
           </div>
           <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
               {scaledNutrition.carbs}g
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">Carbs</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.carbs || 0}g per 100 g)</div>
+            {!isTotalRecipe && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.carbs || 0}g per 100 g)</div>}
           </div>
           <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 text-center">
             <div className="text-2xl font-bold text-red-600 dark:text-red-400">
               {scaledNutrition.fat}g
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">Fat</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.fat || 0}g per 100 g)</div>
+            {!isTotalRecipe && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">({nutrition.fat || 0}g per 100 g)</div>}
           </div>
         </div>
 
         {(nutrition.fiber !== undefined || scaledNutrition.fiber > 0) && (
           <div className="mt-4 flex items-center text-sm text-gray-600 dark:text-gray-300">
             <span className="font-medium">Fiber:</span>
-            <span className="ml-2">{scaledNutrition.fiber}g ({(nutrition.fiber ?? 0)}g per 100 g)</span>
+            <span className="ml-2">{scaledNutrition.fiber}g{!isTotalRecipe && ` (${nutrition.fiber ?? 0}g per 100 g)`}</span>
           </div>
         )}
 
@@ -311,13 +331,17 @@ export default function NutritionDisplay({
                 ? 'text-green-600 dark:text-green-400' 
                 : nutritionSource === 'Open Food Facts' || nutritionSource === 'barcode'
                   ? 'text-blue-600 dark:text-blue-400'
-                  : 'text-gray-600 dark:text-gray-400'
+                  : nutritionSource === 'ingredients'
+                    ? 'text-purple-600 dark:text-purple-400'
+                    : 'text-gray-600 dark:text-gray-400'
             }`}>
               {nutritionSource === 'Livsmedelsverket' 
                 ? 'Livsmedelsverket (Official)' 
                 : nutritionSource === 'Open Food Facts' || nutritionSource === 'barcode'
                   ? 'Open Food Facts'
-                  : 'Estimated'}
+                  : nutritionSource === 'ingredients'
+                    ? 'Ingredients (aggregated)'
+                    : 'Estimated'}
             </span>
           </div>
         )}

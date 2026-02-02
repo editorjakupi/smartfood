@@ -5,6 +5,7 @@ import FoodClassifier from '@/components/FoodClassifier'
 import NutritionDisplay from '@/components/NutritionDisplay'
 import TodaySummary from '@/components/TodaySummary'
 import BarcodeScanner from '@/components/BarcodeScanner'
+import IngredientsInput, { type IngredientsResult } from '@/components/IngredientsInput'
 
 const STORAGE_KEY = 'smartfood_home_image'
 
@@ -50,6 +51,7 @@ export default function Home() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageResult, setImageResult] = useState<ClassificationResult | null>(null)
   const [barcodeResult, setBarcodeResult] = useState<ClassificationResult | null>(null)
+  const [ingredientsResult, setIngredientsResult] = useState<IngredientsResult | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -75,7 +77,8 @@ export default function Home() {
       }
       const data = await response.json()
       if (data.error) throw new Error(data.error || 'Classification failed')
-      setBarcodeResult(null) // new image result replaces displayed result
+      setBarcodeResult(null)
+      setIngredientsResult(null)
       setImageResult(data)
       saveStored(imageData, data) // persist so result stays when navigating away
     } catch (error: any) {
@@ -94,6 +97,8 @@ export default function Home() {
 
   const handleBarcodeProduct = useCallback((barcodeData: BarcodeProduct) => {
     const nut = barcodeData.nutrition_per_100g
+    setImageResult(null)
+    setIngredientsResult(null)
     setBarcodeResult({
       class: (barcodeData.product_name || 'Unknown').replace(/\s+/g, '_'),
       confidence: 1,
@@ -107,6 +112,16 @@ export default function Home() {
       nutritionSource: 'barcode',
       barcode: barcodeData.barcode
     })
+  }, [])
+
+  const handleIngredientsResult = useCallback((data: IngredientsResult) => {
+    setImageResult(null)
+    setBarcodeResult(null)
+    setIngredientsResult(data)
+  }, [])
+
+  const handleClearIngredientsResult = useCallback(() => {
+    setIngredientsResult(null)
   }, [])
 
   const handleImagePreviewChange = useCallback((dataUrl: string | null) => {
@@ -145,10 +160,10 @@ export default function Home() {
 
       <TodaySummary />
 
-      {/* Upload and Barcode cards side by side, same height (aligned at bottom) */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
-        <div className="lg:col-span-2 flex h-full min-h-0">
-          <div className="w-full h-full min-h-0">
+      {/* Upload on left (fills height); Add by ingredients + Barcode stacked on the right */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-stretch">
+        <div className="flex flex-col w-full min-h-[280px] md:min-h-0">
+          <div className="flex-1 flex min-h-0 w-full">
             <FoodClassifier
               onClassify={handleClassification}
               loading={loading}
@@ -158,35 +173,39 @@ export default function Home() {
             />
           </div>
         </div>
-        <div className="flex h-full min-h-0">
-          <div className="w-full h-full min-h-0">
-            <BarcodeScanner
-              onProduct={handleBarcodeProduct}
-              barcodeResultActive={!!(barcodeResult?.nutrition)}
-              onClearBarcode={() => setBarcodeResult(null)}
-            />
-          </div>
+        <div className="flex flex-col gap-4 sm:gap-6 w-full min-h-0">
+          <IngredientsInput
+            onResult={handleIngredientsResult}
+            onClearResult={handleClearIngredientsResult}
+          />
+          <BarcodeScanner
+            onProduct={handleBarcodeProduct}
+            barcodeResultActive={!!(barcodeResult?.nutrition)}
+            onClearBarcode={() => setBarcodeResult(null)}
+          />
         </div>
       </div>
 
-      {/* Single result: full width below both sections. Barcode overrides image when both exist. */}
+      {/* Single result: full width below all three sections. Last-used source wins. */}
       {(() => {
-        const displayResult = barcodeResult ?? imageResult
-        if (!displayResult && !loading && !imagePreview) {
+        const hasIngredients = ingredientsResult != null
+        const hasBarcode = barcodeResult != null && !(barcodeResult as any).error
+        const hasImage = imageResult != null && !(imageResult as any).error && imageResult.class !== 'error'
+        if (!hasIngredients && !hasBarcode && !hasImage && !loading && !imagePreview) {
           return (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
-              Upload an image or enter a barcode to see nutrition information.
+              Upload an image, add ingredients, or enter a barcode to see nutrition information.
             </div>
           )
         }
-        if (displayResult && (displayResult as any).error) {
+        if (imageResult && (imageResult as any).error && !hasIngredients && !hasBarcode) {
           return (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
               <p className="text-red-800 dark:text-red-200 font-medium">Error</p>
-              <p className="text-red-600 dark:text-red-300 mt-2">{(displayResult as any).error}</p>
+              <p className="text-red-600 dark:text-red-300 mt-2">{(imageResult as any).error}</p>
               <button
                 type="button"
-                onClick={() => { setImageResult(null); setBarcodeResult(null); setLoading(false); }}
+                onClick={() => { setImageResult(null); setBarcodeResult(null); setIngredientsResult(null); setLoading(false); }}
                 className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 min-h-[44px]"
               >
                 Try again
@@ -194,14 +213,38 @@ export default function Home() {
             </div>
           )
         }
-        if (displayResult && displayResult.class !== 'error' && displayResult.nutrition) {
+        if (ingredientsResult && ingredientsResult.total) {
           return (
             <NutritionDisplay
-              foodClass={displayResult.class}
-              confidence={displayResult.confidence}
-              nutrition={displayResult.nutrition}
-              nutritionSource={displayResult.nutritionSource}
-              fromBarcode={displayResult.barcode}
+              foodClass="ingredients"
+              confidence={1}
+              nutrition={ingredientsResult.total}
+              nutritionSource={ingredientsResult.source}
+              manualSaveOnly
+              isTotalRecipe
+            />
+          )
+        }
+        if (barcodeResult && barcodeResult.nutrition) {
+          return (
+            <NutritionDisplay
+              foodClass={barcodeResult.class}
+              confidence={barcodeResult.confidence}
+              nutrition={barcodeResult.nutrition}
+              nutritionSource={barcodeResult.nutritionSource}
+              fromBarcode={barcodeResult.barcode}
+              manualSaveOnly
+            />
+          )
+        }
+        if (imageResult && imageResult.nutrition) {
+          return (
+            <NutritionDisplay
+              foodClass={imageResult.class}
+              confidence={imageResult.confidence}
+              nutrition={imageResult.nutrition}
+              nutritionSource={imageResult.nutritionSource}
+              fromBarcode={imageResult.barcode}
               manualSaveOnly
             />
           )

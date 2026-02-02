@@ -100,7 +100,12 @@ export async function POST(request: NextRequest) {
     
     if (nutrition && typeof nutrition === 'object') {
       const nutritionSource = (nutrition as any).source || 'Estimated'
-      context += `Latest meal nutrition (estimated serving of ${DEFAULT_ESTIMATED_PORTION_GRAMS} g; source: ${nutritionSource}):\n`
+      const isIngredients = nutritionSource === 'ingredients'
+      if (isIngredients) {
+        context += `Latest meal/recipe nutrition (total from entered ingredients):\n`
+      } else {
+        context += `Latest meal nutrition (estimated serving of ${DEFAULT_ESTIMATED_PORTION_GRAMS} g; source: ${nutritionSource}):\n`
+      }
       context += `- Calories: ${nutrition.calories || 0} kcal\n`
       context += `- Protein: ${nutrition.protein || 0}g\n`
       context += `- Carbohydrates: ${nutrition.carbs || 0}g\n`
@@ -108,7 +113,11 @@ export async function POST(request: NextRequest) {
       if (nutrition.fiber != null) {
         context += `- Fiber: ${nutrition.fiber}g\n`
       }
-      context += `\nImportant: These numbers are the user's estimated meal intake for a typical serving (${DEFAULT_ESTIMATED_PORTION_GRAMS} g), not per 100 g. When giving recommendations, refer to these values as "this meal" or "your latest meal" (e.g. "${nutrition.calories || 0} kcal", "${nutrition.protein || 0}g protein"). Do not suggest they ate only 100 g or treat the values as per-100g.\n`
+      if (isIngredients) {
+        context += `\nImportant: These numbers are the total for the ingredients the user entered (this meal/recipe). When giving recommendations, refer to them as "this meal" or "your recipe" (e.g. "${nutrition.calories || 0} kcal", "${nutrition.protein || 0}g protein").\n`
+      } else {
+        context += `\nImportant: These numbers are the user's estimated meal intake for a typical serving (${DEFAULT_ESTIMATED_PORTION_GRAMS} g), not per 100 g. When giving recommendations, refer to these values as "this meal" or "your latest meal" (e.g. "${nutrition.calories || 0} kcal", "${nutrition.protein || 0}g protein"). Do not suggest they ate only 100 g or treat the values as per-100g.\n`
+      }
     }
     
     if (history && Array.isArray(history) && history.length > 0) {

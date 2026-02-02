@@ -1,6 +1,11 @@
 'use client'
 
 import { useState, useRef, useEffect, ChangeEvent } from 'react'
+import dynamic from 'next/dynamic'
+
+const CameraCapture = dynamic(() => import('@/components/CameraCapture'), { ssr: false })
+
+type InputMode = 'upload' | 'camera'
 
 interface FoodClassifierProps {
   onClassify: (imageData: string) => void
@@ -15,6 +20,7 @@ interface FoodClassifierProps {
 
 export default function FoodClassifier({ onClassify, loading, initialPreview = null, onPreviewChange, onClear }: FoodClassifierProps) {
   const [preview, setPreviewState] = useState<string | null>(initialPreview ?? null)
+  const [inputMode, setInputMode] = useState<InputMode>('upload')
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -84,15 +90,45 @@ export default function FoodClassifier({ onClassify, loading, initialPreview = n
     }
   }
 
-  return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-        Upload Image
-      </h2>
+  const handleCapture = (imageData: string) => {
+    setPreviewState(imageData)
+    onPreviewChange?.(imageData)
+    onClassify(imageData)
+  }
 
+  return (
+    <div className="h-full flex flex-col min-h-0 bg-white dark:bg-gray-800 rounded-lg shadow p-4 sm:p-6 w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 flex-shrink-0">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Upload or take photo
+        </h2>
+        <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setInputMode('upload')}
+            className={`px-3 py-1.5 text-sm font-medium min-h-[44px] ${inputMode === 'upload' ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+          >
+            Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => setInputMode('camera')}
+            className={`px-3 py-1.5 text-sm font-medium min-h-[44px] ${inputMode === 'camera' ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+          >
+            Take photo
+          </button>
+        </div>
+      </div>
+
+      {inputMode === 'camera' && !preview ? (
+        <div className="flex-1 flex min-h-[240px] min-h-0 overflow-hidden">
+          <CameraCapture onCapture={handleCapture} loading={loading} />
+        </div>
+      ) : (
+      <>
       <div
         className={`
-          relative border-2 border-dashed rounded-lg p-8
+          relative flex-1 flex flex-col justify-center min-h-[200px] md:min-h-[240px] border-2 border-dashed rounded-lg p-6 sm:p-8
           transition-colors duration-200
           ${dragActive ? 'border-primary-500 dark:border-primary-400 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-300 dark:border-gray-600'}
           ${preview ? 'border-solid' : ''}
@@ -157,7 +193,7 @@ export default function FoodClassifier({ onClassify, loading, initialPreview = n
       </div>
 
       {preview && (
-        <div className="mt-4 flex gap-3">
+        <div className="mt-4 flex gap-3 flex-shrink-0">
           <button
             onClick={handleClassify}
             disabled={loading}
@@ -181,11 +217,13 @@ export default function FoodClassifier({ onClassify, loading, initialPreview = n
           <button
             onClick={handleClear}
             disabled={loading}
-            className="py-2 px-4 rounded-lg font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+            className="py-2.5 px-4 rounded-lg font-medium text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 min-h-[44px] touch-manipulation"
           >
             Clear
           </button>
         </div>
+      )}
+      </>
       )}
     </div>
   )

@@ -34,7 +34,7 @@ const NUTRITION_DATA: Record<string, Record<string, number>> = {
   'sushi': { calories: 150, protein: 6, carbs: 30, fat: 0.5, fiber: 0 },
   'salad': { calories: 35, protein: 2, carbs: 7, fat: 0.3, fiber: 3 },
   'pasta': { calories: 220, protein: 8, carbs: 43, fat: 1.3, fiber: 2 },
-  'chicken_wings': { calories: 290, protein: 27, carbs: 0, fat: 19, fiber: 0 },
+  'chicken_wings': { calories: 290, protein: 27, carbs: 8, fat: 19, fiber: 0 },
   'french_fries': { calories: 312, protein: 3, carbs: 41, fat: 15, fiber: 4 },
   'ice_cream': { calories: 207, protein: 4, carbs: 24, fat: 11, fiber: 0 },
   'chocolate_cake': { calories: 371, protein: 5, carbs: 50, fat: 17, fiber: 2 },

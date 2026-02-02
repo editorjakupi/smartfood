@@ -62,6 +62,14 @@ export async function PATCH(request: NextRequest) {
     }
     await dbOperations.setUserSettings(userId, updates)
     const settings = await dbOperations.getUserSettings(userId)
+    // Log today's goals for history (daily goal snapshot)
+    const today = new Date().toISOString().slice(0, 10)
+    await dbOperations.saveDailyGoalLog(userId, today, {
+      calories: settings.daily_calories_goal,
+      protein: settings.daily_protein_goal,
+      fat: settings.daily_fat_goal,
+      carbs: settings.daily_carbs_goal
+    })
     return NextResponse.json(settings)
   } catch (error: any) {
     console.error('Settings PATCH error:', error)
