@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const protocol = request.headers.get('x-forwarded-proto') || 'http'
     const baseUrl = `${protocol}://${host}`
 
-    const lines = text.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean)
+    const lines = text.split(/[\n,;]+/).map((s: string) => s.trim()).filter(Boolean)
     const parsed: ParsedIngredient[] = []
     for (const line of lines) {
       const p = parseIngredientLine(line)

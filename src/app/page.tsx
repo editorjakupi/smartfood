@@ -218,7 +218,7 @@ export default function Home() {
             <NutritionDisplay
               foodClass="ingredients"
               confidence={1}
-              nutrition={ingredientsResult.total}
+              nutrition={{ ...ingredientsResult.total }}
               nutritionSource={ingredientsResult.source}
               manualSaveOnly
               isTotalRecipe
