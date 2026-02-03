@@ -1,58 +1,43 @@
 # SmartFood
 
-🌐**Live:** [https://smartfood-ten.vercel.app/](https://smartfood-ten.vercel.app/)
+**Live:** [https://smartfood-ten.vercel.app/](https://smartfood-ten.vercel.app/)
 
-Web app that identifies food from images, shows nutrition data (per 100 g), and provides eating-pattern predictions and dietary advice. Built with Next.js, TypeScript, and AI/ML (Google Cloud Vision, Livsmedelsverket, Groq/Llama 3.1, optional CNN/LSTM via TensorFlow.js).
+Web app that identifies food from images, shows nutrition data (per 100 g and per serving), predicts eating patterns, and includes a nutrition chatbot. Built with Next.js, TypeScript, Google Cloud Vision (primary classifier), optional CNN/LSTM via TensorFlow.js, and Groq (Llama) for chat and translation.
 
 ---
 
 ## Features
 
-- **Food classification** — Image to food type via Google Cloud Vision (primary) or local CNN model (fallback when available).
-- **Nutrition** — Livsmedelsverket (primary) and Open Food Facts (fallback) use free, open APIs; then Llama 3.1 estimates → generic category values. Base data is per 100 g; the app scales to an estimated serving (150 g) for display, history, and recommendations so advice matches "what was eaten" (same in deployment).
-- **Translation** — English food names translated to Swedish via Llama 3.1 (fallback: hardcoded list) for Livsmedelsverket lookup.
-- **Predictions** — Expected next meal (calories and type) and personalized tips from eating history (LSTM or simplified model when TF.js model is unavailable).
-- **Chat** — Dietary advice powered by Llama 3.1 (Groq).
-- **History, camera, profiles** — Per-user history (SQLite locally, Postgres in production); add, edit, delete entries; export CSV; manual add; camera capture; create profile, login with Profile ID, log out to use another profile (desktop and mobile).
-- **Today summary** — Daily meals, kcal and protein with clear “eaten / goal” labels when goals are set (Settings). Water tracker and streak.
-- **Dark mode** — Full app support; toggle in navigation.
-- **Barcode** — Scan or enter EAN/UPC on home for product nutrition (Open Food Facts); results shown in same Nutrition display as image classification.
-
----
-
-## Recent changes
-
-- **Today:** Kcal and protein show “eaten / goal” so e.g. 160 / 200 g is clearly “160 g eaten, 200 g goal”. History table header “Protein (g)”.
-- **Build:** `dev` and `build` use `--webpack` so Next.js runs on Windows paths with special characters (e.g. “ä”).
-- **API:** User-friendly handling for rate limits (429) from Vision/Groq.
-- **UX:** Touch-friendly buttons (min 44px), Safari note for barcode camera; all UI copy in English.
+- **Food classification** — Upload or capture image → Google Cloud Vision (primary) or local CNN (fallback).
+- **Nutrition** — Livsmedelsverket and Open Food Facts APIs; per 100 g and selectable portion (small/normal/large). Add by ingredients or barcode (Open Food Facts).
+- **Predictions** — Expected next meal and daily intake from eating history (LSTM when model and 14+ meals available; otherwise simplified estimates).
+- **Chat** — Nutrition Assistant powered by Llama (Groq), with access to the user’s meal history as context.
+- **History & profiles** — Per-user meal log, export CSV, edit/delete. Create profile and log in with Profile ID (SQLite locally, Postgres in production).
+- **Today summary** — Daily kcal and protein, goals in Settings, water tracker, streak.
+- **Dark mode** — Toggle in navigation.
 
 ---
 
 ## Tech stack
 
-| Layer            | Stack                                                                                          |
-| ---------------- | ---------------------------------------------------------------------------------------------- |
-| Frontend         | Next.js 14 (App Router), TypeScript, Tailwind CSS, Recharts                                    |
-| Backend          | Next.js API routes, SQLite (local) / Postgres (production)                                     |
-| Food / nutrition | Google Cloud Vision, Livsmedelsverket API, Groq (Llama 3.1), optional CNN/LSTM (TensorFlow.js) |
+| Layer     | Stack                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------- |
+| Frontend  | Next.js 14 (App Router), TypeScript, Tailwind CSS, Recharts                                             |
+| Backend   | Next.js API routes, SQLite (local) / Postgres (production)                                              |
+| Food / AI | Google Cloud Vision, Livsmedelsverket, Open Food Facts, Groq (Llama), optional CNN/LSTM (TensorFlow.js) |
 
 ---
 
 ## Prerequisites
 
-- **Node.js** 18+ and npm
-- **GROQ_API_KEY** — Chat, translation, and nutrition fallback (get at [console.groq.com](https://console.groq.com))
-- **GOOGLE_CLOUD_VISION_API_KEY** — Food classification (get at [Google Cloud Console](https://console.cloud.google.com/apis/credentials))
-- **Python** 3.9+ — Only for training and converting models; the app runs models in Node via TensorFlow.js
-
-Nutrition data: Livsmedelsverket (primary) and Open Food Facts (fallback) are free, open APIs (no API keys required).
+- **Node.js** 18+
+- **GROQ_API_KEY** — Chat and translation ([console.groq.com](https://console.groq.com))
+- **GOOGLE_CLOUD_VISION_API_KEY** — Food classification ([Google Cloud Console](https://console.cloud.google.com/apis/credentials))
+- **POSTGRES_URL** — Optional; only for production (e.g. Vercel Postgres). Omit for local SQLite.
 
 ---
 
 ## Getting started
-
-**Run in PowerShell (Windows) or terminal (macOS/Linux).**
 
 ```bash
 git clone <repo-url>
@@ -61,12 +46,9 @@ npm install
 cp .env.example .env.local
 ```
 
-Edit `.env.local` and set at least:
+Edit `.env.local`: set `GROQ_API_KEY` and `GOOGLE_CLOUD_VISION_API_KEY`.
 
-- `GROQ_API_KEY`
-- `GOOGLE_CLOUD_VISION_API_KEY`
-
-**If you use a path containing special characters (e.g. “ä”) on Windows,** use the project’s `dev`/`build` scripts as-is; they already use `--webpack` to avoid Turbopack path issues.
+**Windows paths with special characters (e.g. “ä”):** use the project’s `dev`/`build` scripts; they use `--webpack` to avoid Turbopack path issues.
 
 ```bash
 npm run dev
@@ -76,66 +58,29 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## Training and TensorFlow.js conversion
+## Training and TensorFlow.js models
 
-Models are trained in Jupyter. TensorFlow.js conversion runs reliably on **Ubuntu or WSL** (on Windows, the `tensorflowjs` pip package can fail due to `tensorflow-decision-forests`; use WSL or see [scripts/install_tfjs_converter_windows.md](scripts/install_tfjs_converter_windows.md)).
+Models are trained in Jupyter. TensorFlow.js conversion runs reliably on **Ubuntu or WSL** (on Windows, `tensorflowjs` can fail; use WSL).
 
-**Run in Ubuntu or WSL:**
+- **CNN:** `notebooks/cnn/food_classifier_transfer_learning_colab.ipynb` — Training; saves best model during training. Conversion to TensorFlow.js (and optionally ONNX) is in `notebooks/cnn/cnn_convert_tfjs_onnx.ipynb` in the same folder.
+- **LSTM:** `notebooks/lstm/lstm_eating_patterns.ipynb` — Training and TF.js conversion in the notebook.
 
-```bash
-cd smartfood
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install tensorflow tensorflowjs h5py
-jupyter notebook --allow-root
-```
-
-- **CNN:** `notebooks/cnn/cnn_training_complete.ipynb` — Saves the model and converts to TF.js in the notebook.
-- **LSTM:** `notebooks/lstm/lstm_eating_patterns.ipynb` — Saves the model and converts to TF.js in the notebook (run all cells including the TF.js conversion cell).
-
-Output: `data/models/cnn/tfjs/` and `data/models/lstm/tfjs/`. Next.js loads these via TensorFlow.js; no Python servers are used.
-
-**LSTM config:** The app needs `data/models/lstm/scaler_params.json` and `model_config.json`. Default files are provided; for best accuracy after training, run the notebook cell **"Save Model and Config"** to overwrite them with the trained scaler and metrics.
-
----
-
-## Testing that the LSTM model is used
-
-1. **At least 14 meals in history** — The LSTM needs a sequence of 14 meals; with fewer, the app uses simplified estimates.
-2. Open **Predictions** in the app (or call `GET /api/predictions` with a valid user).
-3. In the response, check **`lstmModelUsed: true`** — then the TensorFlow.js LSTM model was used. If `lstmModelUsed: false`, you get the `note` field explaining why (e.g. need 14+ meals or missing TF.js model/config).
-4. In the browser: DevTools → Network → select the predictions request → Response: look for `"lstmModelUsed": true` and `"modelUsed": "LSTM (Bidirectional LSTM with Attention)"`.
+Output: `data/models/cnn/tfjs/` and `data/models/lstm/tfjs/`. The app also needs `data/models/lstm/scaler_params.json` and `data/models/lstm/model_config.json` (defaults are provided; overwrite from the LSTM notebook after training for best accuracy).
 
 ---
 
 ## Database
 
-- **Local:** SQLite at `data/smartfood.db`
-- **Production:** Postgres (e.g. Vercel Postgres, Neon); set `POSTGRES_URL`
+- **Local:** SQLite at `data/smartfood.db` (created on first use).
+- **Production:** Set `POSTGRES_URL` (e.g. Vercel Postgres, Neon).
 
 ---
 
 ## Deployment (Vercel)
 
 1. Connect the repo to Vercel.
-2. Set environment variables: `GROQ_API_KEY`, `GOOGLE_CLOUD_VISION_API_KEY`, `POSTGRES_URL` (recommended for production so history and profiles persist).
-3. Deploy.
-
-**Behavior in production (same as local where applicable):**
-
-- **Profiles and DB** — Profile create/login/delete and history use the database. Set `POSTGRES_URL` in Vercel so production uses Postgres. Profile existence check (before login) and permanent delete work the same as locally.
-- **LSTM model** — Runs in API routes (Node.js). Include `data/models/lstm/tfjs/` (and `scaler_params.json`, `model_config.json`) in the repo so they are deployed; the app loads the model from the filesystem. If the model is missing, predictions fall back to simplified estimates.
-- **Portion and recommendations** — Nutrition is scaled to an estimated serving (150 g) for display, saved history, and recommendations. The LLM is told these values are "meal intake", not per 100 g, so recommendations stay accurate in deployment.
-
----
-
-## Troubleshooting
-
-- **Groq errors** — Check `GROQ_API_KEY` in `.env.local` (no extra spaces or quotes).
-- **Classification** — Requires `GOOGLE_CLOUD_VISION_API_KEY` and network access.
-- **Nutrition** — Livsmedelsverket (primary), Open Food Facts (fallback; free open API) → Llama 3.1 estimates → generic values. Translation: Llama 3.1 → hardcoded.
-- **SQLite** — If the DB is corrupted, delete `data/smartfood.db` and restart; tables are created on first use.
+2. Set environment variables: `GROQ_API_KEY`, `GOOGLE_CLOUD_VISION_API_KEY`, and for production persistence `POSTGRES_URL`.
+3. Run `npm run build` locally to verify before pushing; deployment runs build on push.
 
 ---
 

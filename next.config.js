@@ -12,8 +12,6 @@ const nextConfig = {
     ],
   },
   typescript: {
-    // Temporarily ignore build errors to see if build completes
-    // Remove this after fixing TypeScript errors
     ignoreBuildErrors: false,
   },
 };

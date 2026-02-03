@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { getUserId } from '@/lib/userId'
+import { formatFoodName } from '@/types/food'
 
 interface FavoriteEntry {
   id: number
@@ -93,9 +94,6 @@ export default function FavoritesPage() {
       setRemovingId(null)
     }
   }
-
-  const formatFoodName = (name: string) =>
-    name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
   return (
     <div className="space-y-6">

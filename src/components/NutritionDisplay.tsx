@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { getUserId } from '@/lib/userId'
 import { scaleNutritionPer100ToPortion, PORTION_SIZES, type PortionSizeKey } from '@/lib/portion'
+import { formatFoodName } from '@/types/food'
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 type MealType = typeof MEAL_TYPES[number]
@@ -127,11 +128,6 @@ export default function NutritionDisplay({
       }
     }
   }, [foodClass, nutrition, scaledNutrition, confidence, portion, mealType, manualSaveOnly, isTotalRecipe])
-
-  const formatFoodName = (name: string) => {
-    if (name === 'error') return 'Error'
-    return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-  }
 
   if (!nutrition || foodClass === 'error' || !scaledNutrition) return null
 

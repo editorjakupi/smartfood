@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import * as fs from 'fs'
-import * as path from 'path'
 
 // Food-101 class names (for local CNN model)
 const FOOD_CLASSES = [
@@ -172,21 +170,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Classification priority:
+    // Classification priority (same as GitHub remote):
     // 1. Google Cloud Vision API (if configured)
-    // 2. Local CNN model (if available)
-    
-    let results: any = null
+    // 2. Local CNN model via TensorFlow.js (fallback)
     let modelUsed = ''
     let foodClass: string | null = null
     let confidence = 0
     let label = ''
 
-    // Try Google Cloud Vision API first (if configured)
+    // 1. Primary: Google Cloud Vision API (if configured)
     if (process.env.GOOGLE_CLOUD_VISION_API_KEY) {
       try {
         console.log('Trying Google Cloud Vision API...')
-        
         const visionResponse = await fetch(
           `https://vision.googleapis.com/v1/images:annotate?key=${process.env.GOOGLE_CLOUD_VISION_API_KEY}`,
           {
@@ -201,31 +196,26 @@ export async function POST(request: NextRequest) {
             signal: AbortSignal.timeout(10000)
           }
         )
-        
         if (visionResponse.ok) {
           const visionData = await visionResponse.json()
           const labels = visionData.responses?.[0]?.labelAnnotations || []
-          
           if (labels.length > 0) {
-            // Try to map labels to Food-101 classes
             for (const labelAnnotation of labels) {
               const mappedClass = mapVisionLabelToFoodClass(labelAnnotation.description)
               if (mappedClass) {
                 foodClass = mappedClass
                 label = mappedClass.replace(/_/g, ' ')
-                confidence = labelAnnotation.score || 0.8
+                confidence = labelAnnotation.score ?? 0.8
                 modelUsed = 'google-cloud-vision'
                 console.log(`Successfully used Google Cloud Vision API: ${label} (${foodClass})`)
                 break
               }
             }
-            
-            // If no mapping found, use top label anyway (but this shouldn't happen often)
             if (!foodClass && labels.length > 0) {
               const topLabel = labels[0]
               foodClass = topLabel.description.toLowerCase().replace(/ /g, '_').replace(/[^a-z0-9_]/g, '')
               label = topLabel.description
-              confidence = topLabel.score || 0.7
+              confidence = topLabel.score ?? 0.7
               modelUsed = 'google-cloud-vision'
               console.log(`Used Google Cloud Vision API (unmapped): ${label}`)
             }
@@ -241,23 +231,18 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (visionError: any) {
-        console.log('Google Cloud Vision API failed:', visionError.message)
+        console.log('Google Cloud Vision API failed:', visionError?.message ?? visionError)
       }
     } else {
       console.log('Google Cloud Vision API not configured')
     }
 
-    // If Google Cloud Vision failed or not configured, try CNN model using TensorFlow.js
-    // TensorFlow.js works in both local development and serverless deployment (Vercel)
+    // 2. Fallback: If Vision failed or not configured, try local CNN (TensorFlow.js)
     if (!foodClass) {
       try {
         console.log('Attempting to use CNN model (TensorFlow.js)...')
-        
-        // Import TensorFlow.js CNN implementation
         const { predictCNN } = await import('@/lib/cnn-tfjs')
-        
         const cnnResult = await predictCNN(base64Data)
-        
         if (cnnResult && cnnResult.class) {
           foodClass = cnnResult.class
           label = cnnResult.label
@@ -268,18 +253,15 @@ export async function POST(request: NextRequest) {
           console.log('CNN model (TensorFlow.js) returned no result')
         }
       } catch (cnnError: any) {
-        // CNN model not available or error
-        console.log('CNN model (TensorFlow.js) not available:', cnnError.message)
-        console.log('Note: Convert CNN/LSTM to TensorFlow.js in notebooks (see README).')
+        console.log('CNN model (TensorFlow.js) not available:', cnnError?.message ?? cnnError)
+        console.log('Note: Convert CNN to TensorFlow.js in notebook (see README).')
       }
     }
 
-    // If both methods failed, return error
     if (!foodClass) {
       const errorMessage = !process.env.GOOGLE_CLOUD_VISION_API_KEY
         ? 'Google Cloud Vision API key not configured. Please set GOOGLE_CLOUD_VISION_API_KEY in your .env.local file.\n\nGet your API key at: https://console.cloud.google.com/apis/credentials'
         : 'Both Google Cloud Vision API and local CNN model failed. Please check:\n1. Google Cloud Vision API key is valid\n2. CNN TensorFlow.js model exists at: data/models/cnn/tfjs/model.json (convert in notebook, see README)'
-      
       return NextResponse.json(
         { error: errorMessage },
         { status: 500 }
