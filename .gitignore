@@ -49,6 +49,7 @@ ENV/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb_checkpoints
+notebooks/cnn/cnn_convert_tfjs_onnx.ipynb
 
 # Node
 node_modules/
