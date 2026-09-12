@@ -5,20 +5,19 @@ import { useState, useEffect } from 'react'
 const THEME_KEY = 'smartfood_theme'
 
 export default function ThemeToggle() {
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(true)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     try {
       const stored = localStorage.getItem(THEME_KEY)
-      const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-      const isDark = stored === 'dark' || (!stored && prefersDark)
+      const isDark = stored !== 'light'
       setDark(isDark)
       if (isDark) document.documentElement.classList.add('dark')
       else document.documentElement.classList.remove('dark')
     } catch {
-      document.documentElement.classList.remove('dark')
+      document.documentElement.classList.add('dark')
     }
   }, [])
 

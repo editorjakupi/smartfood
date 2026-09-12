@@ -35,6 +35,7 @@ export default function TodaySummary({ onHistoryLoaded }: TodaySummaryProps) {
   const [avgDailyKcal, setAvgDailyKcal] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [goalsOpen, setGoalsOpen] = useState(true)
 
   const refresh = async () => {
     const uid = getUserId()
@@ -98,6 +99,23 @@ export default function TodaySummary({ onHistoryLoaded }: TodaySummaryProps) {
     refresh()
   }, [])
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('smartfood_goals_open')
+      if (stored === '0') setGoalsOpen(false)
+    } catch {}
+  }, [])
+
+  const toggleGoals = () => {
+    setGoalsOpen((open) => {
+      const next = !open
+      try {
+        localStorage.setItem('smartfood_goals_open', next ? '1' : '0')
+      } catch {}
+      return next
+    })
+  }
+
   const addWater = async () => {
     const uid = getUserId()
     if (!uid) return
@@ -114,9 +132,33 @@ export default function TodaySummary({ onHistoryLoaded }: TodaySummaryProps) {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center gap-3">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Today</h2>
-        <Link href="/settings" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300">Goals & settings</Link>
+        <button
+          type="button"
+          onClick={toggleGoals}
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 min-h-[44px]"
+          aria-expanded={goalsOpen}
+          aria-controls="today-goals-panel"
+        >
+          Goals & settings
+          <svg
+            className={`w-4 h-4 transition-transform ${goalsOpen ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+      {goalsOpen && (
+      <div id="today-goals-panel" className="mt-4">
+      <div className="flex justify-end mb-3">
+        <Link href="/settings" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300">
+          Edit goals
+        </Link>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
@@ -161,6 +203,8 @@ export default function TodaySummary({ onHistoryLoaded }: TodaySummaryProps) {
         </div>
         <button type="button" onClick={addWater} className="px-3 py-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 shrink-0">+1 glass</button>
       </div>
+      </div>
+      )}
     </div>
   )
 }
